@@ -8,16 +8,17 @@ Plataforma web full-stack de gestão de clubes — **Nuxt 4** + **FastAPI** + **
 
 ## Tech Stack
 
-| Camada     | Tecnologia                    | Versão    |
-|------------|-------------------------------|-----------|
-| Runtime    | Python                        | 3.10+     |
-| API        | FastAPI + Uvicorn              | 0.115.6   |
-| ORM        | SQLAlchemy                     | 2.0.36    |
-| DB         | PostgreSQL (psycopg2)          | 15+       |
-| Auth       | python-jose (JWT) + Argon2     | —         |
-| Frontend   | Nuxt 4 (Vue 3, SSR)           | 4.x       |
-| UI         | Bootstrap 5, SweetAlert2       | —         |
-| Viz        | Chart.js, Leaflet.js, FullCalendar | —     |
+| Camada     | Tecnologia                         | Versão    |
+|------------|------------------------------------|-----------|
+| Runtime    | Python                             | 3.10+     |
+| API        | FastAPI + Uvicorn                  | 0.115.6   |
+| ORM        | SQLAlchemy                         | 2.0.36    |
+| DB         | PostgreSQL (psycopg2)              | 15+       |
+| Auth       | python-jose (JWT) + Argon2         | —         |
+| Cache      | In-memory dict (TTL + invalidação) | —         |
+| Frontend   | Nuxt 4 (Vue 3, SSR)               | 4.x       |
+| UI         | Bootstrap 5, SweetAlert2           | —         |
+| Viz        | Chart.js, Leaflet.js, FullCalendar | —         |
 
 ---
 
@@ -50,8 +51,9 @@ C4Container
     }
 
     Container_Boundary(backend, "Backend") {
-        Container(api, "FastAPI", "Python 3.10+, Uvicorn", "API REST. Auth JWT, CRUD, inscrições, stats.")
+        Container(api, "FastAPI", "Python 3.10+, Uvicorn", "API REST. Auth JWT, CRUD, inscrições, stats. Cache in-memory com TTL.")
         Container(auth_mod, "Auth Module", "python-jose, passlib[argon2]", "Registo, login, emissão/validação JWT.")
+        Container(cache_mod, "Cache Module", "cache.py, dict + time.monotonic", "Cache in-memory com TTL por key e invalidação por prefixo.")
     }
 
     ContainerDb(db, "PostgreSQL", "psycopg2", "5 tabelas: clubes, utilizador, tipouser, mapas, membro_clube")
@@ -59,6 +61,7 @@ C4Container
     Rel(user, nuxt, "HTTPS :3000")
     Rel(nuxt, api, "fetch HTTP/JSON :8000", "Authorization: Bearer JWT")
     Rel(api, auth_mod, "Depends(get_current_user)")
+    Rel(api, cache_mod, "cache_get / cache_set / cache_invalidate")
     Rel(api, db, "SQLAlchemy Session")
     Rel(auth_mod, db, "SQLAlchemy Session")
 ```
@@ -70,10 +73,11 @@ C4Component
     title Component Diagram — FastAPI Backend
 
     Container_Boundary(api, "FastAPI Application") {
-        Component(main, "main.py", "FastAPI Router", "CRUD clubes/utilizadores/tipouser/mapas + stats + inscrições. CORS middleware. Startup init_db().")
+        Component(main, "main.py", "FastAPI Router", "CRUD clubes/utilizadores/tipouser/mapas + stats + inscrições. CORS middleware. Cache get/set nos GETs, invalidate nos writes. Startup init_db().")
         Component(auth, "auth.py", "APIRouter /auth", "POST /auth/ (register), POST /auth/token (login). Argon2 hash/verify. JWT encode/decode. get_current_user dependency.")
         Component(models, "models.py", "SQLAlchemy + Pydantic", "5 ORM models + relationships + cascade config. Pydantic schemas para request/response validation.")
         Component(database, "database.py", "Engine + SessionLocal", "Connection string via env vars. get_db() generator. init_db() → Base.metadata.create_all().")
+        Component(cache, "cache.py", "dict + TTL", "cache_get(key), cache_set(key, value, ttl), cache_invalidate(*prefixes). TTL via time.monotonic().")
     }
 
     ContainerDb(db, "PostgreSQL")
@@ -81,6 +85,7 @@ C4Component
     Rel(main, auth, "include_router(auth.router)")
     Rel(main, models, "importa Models + Schemas")
     Rel(main, database, "Depends(get_db)")
+    Rel(main, cache, "cache_get / cache_set / cache_invalidate")
     Rel(auth, models, "importa UtilizadorModel")
     Rel(auth, database, "SessionLocal()")
     Rel(database, db, "psycopg2 connection pool")
@@ -140,6 +145,71 @@ erDiagram
 
 ---
 
+## Cache — Estratégia de TTL e Invalidação
+
+O sistema usa uma cache in-memory (`cache.py`) com TTL por key e invalidação automática por prefixo em operações de escrita.
+
+### Módulo `cache.py`
+
+```python
+import time
+from typing import Any
+
+_cache: dict[str, tuple[float, Any]] = {}
+
+def cache_get(key: str) -> Any | None:
+    entry = _cache.get(key)
+    if entry is None:
+        return None
+    expires_at, value = entry
+    if time.monotonic() > expires_at:
+        del _cache[key]
+        return None
+    return value
+
+def cache_set(key: str, value: Any, ttl: int) -> None:
+    _cache[key] = (time.monotonic() + ttl, value)
+
+def cache_invalidate(*prefixes: str) -> None:
+    keys_to_delete = [k for k in _cache if any(k.startswith(p) for p in prefixes)]
+    for k in keys_to_delete:
+        del _cache[k]
+```
+
+### Tabela de TTL e Invalidação
+
+| Endpoint GET        | Cache Key              | TTL    | Invalidado por                           |
+|---------------------|------------------------|--------|------------------------------------------|
+| `GET /stats`        | `stats`                | 60 s   | POST/PUT/DELETE clubes, utilizadores, mapas, tipouser |
+| `GET /statstpuser`  | `statstpuser`          | 60 s   | POST/PUT/DELETE utilizadores, tipouser   |
+| `GET /registrations`| `registrations:{year}` | 300 s  | DELETE/PUT utilizadores                  |
+| `GET /clubes`       | `clubes:list`          | 30 s   | POST/PUT/DELETE clubes                   |
+| `GET /tipouser`     | `tipouser:list`        | 120 s  | POST/PUT/DELETE tipouser                 |
+| `GET /mapas`        | `mapas:list`           | 60 s   | POST/PUT/DELETE mapas                    |
+
+### Fluxo de Leitura (GET)
+
+```python
+# Exemplo: GET /stats
+cached = cache_get("stats")
+if cached is not None:
+    return cached          # responde sem tocar na BD
+
+result = { ... }          # query à BD
+cache_set("stats", result, ttl=60)
+return result
+```
+
+### Fluxo de Escrita (POST/PUT/DELETE)
+
+```python
+# Exemplo: POST /clubes — após db.commit()
+cache_invalidate("stats", "clubes:")
+# Remove todas as keys que começam com "stats" ou "clubes:"
+```
+
+---
+
 ## Sequence Diagrams
 
 ### Autenticação (Login + Acesso Protegido)
@@ -182,13 +252,14 @@ sequenceDiagram
     end
 ```
 
-### CRUD — Criar Clube
+### CRUD — Criar Clube (com invalidação de cache)
 
 ```mermaid
 sequenceDiagram
     actor U as Utilizador
     participant F as Nuxt (clubes.vue)
     participant API as FastAPI
+    participant C as Cache (dict)
     participant DB as PostgreSQL
 
     U->>F: Preenche formulário (nome, email, tel, localidade, evento_at)
@@ -196,11 +267,16 @@ sequenceDiagram
     API->>API: Depends(get_current_user) → valida JWT
     API->>DB: INSERT INTO clubes VALUES(...)
     DB-->>API: clube row
+    API->>C: cache_invalidate("stats", "clubes:")
+    C->>C: Remove keys com prefixo "stats" e "clubes:"
     API-->>F: 200 ClubeResponse {id, nome, ...}
     F->>F: Swal.fire("Sucesso")
     F->>API: GET /clubes + Bearer JWT
+    API->>C: cache_get("clubes:list")
+    C-->>API: None (cache miss)
     API->>DB: SELECT * FROM clubes
     DB-->>API: [rows]
+    API->>C: cache_set("clubes:list", rows, ttl=30)
     API-->>F: 200 [ClubeResponse]
     F->>F: Atualiza tabela reativa
 ```
@@ -240,28 +316,49 @@ sequenceDiagram
     C->>C: Swal.fire(response.mensagem)
 ```
 
-### Dashboard — Carregamento de Estatísticas
+### Dashboard — Carregamento de Estatísticas (com cache)
 
 ```mermaid
 sequenceDiagram
     participant F as Nuxt (dashboard.vue)
     participant API as FastAPI
+    participant C as Cache (dict)
     participant DB as PostgreSQL
 
     F->>API: GET /stats
-    API->>DB: SELECT COUNT(*) FROM clubes, utilizador, tipouser, mapas
-    DB-->>API: {counts}
-    API-->>F: {clubes, utilizadores, tipousers, mapas}
+    API->>C: cache_get("stats")
+    alt Cache hit
+        C-->>API: {clubes, utilizadores, tipousers, mapas}
+        API-->>F: 200 (from cache)
+    else Cache miss
+        C-->>API: None
+        API->>DB: SELECT COUNT(*) FROM clubes, utilizador, tipouser, mapas
+        DB-->>API: {counts}
+        API->>C: cache_set("stats", result, ttl=60)
+        API-->>F: 200 {clubes, utilizadores, tipousers, mapas}
+    end
 
     par Parallel requests
         F->>API: GET /statstpuser (Authorization: Bearer token)
-        API->>DB: GROUP BY tipo_id, COUNT(*)
-        DB-->>API: {tipo: count}
+        API->>C: cache_get("statstpuser")
+        alt Cache hit
+            C-->>API: {tipo: count}
+        else Cache miss
+            API->>DB: GROUP BY tipo_id, COUNT(*)
+            DB-->>API: {tipo: count}
+            API->>C: cache_set("statstpuser", result, ttl=60)
+        end
         API-->>F: {admin: N, gestor: N, ...}
     and
         F->>API: GET /registrations (Authorization: Bearer token)
-        API->>DB: SELECT EXTRACT(month), COUNT(*) WHERE year = current GROUP BY month
-        DB-->>API: [{month, count}]
+        API->>C: cache_get("registrations:2026")
+        alt Cache hit
+            C-->>API: [{month, count}]
+        else Cache miss
+            API->>DB: SELECT EXTRACT(month), COUNT(*) WHERE year = current GROUP BY month
+            DB-->>API: [{month, count}]
+            API->>C: cache_set("registrations:2026", data, ttl=300)
+        end
         API-->>F: [{month: "Janeiro", count: N}, ...]
     end
 
@@ -281,47 +378,47 @@ sequenceDiagram
 
 ### Clubes (`/clubes`)
 
-| Método | Rota                     | Body / Params       | Response            | Auth  | Status Codes     |
-|--------|--------------------------|---------------------|---------------------|-------|------------------|
-| POST   | `/clubes`                | `ClubeCreate`       | `ClubeResponse`     | JWT   | 200              |
-| GET    | `/clubes`                | —                   | `[ClubeResponse]`   | JWT   | 200              |
-| PUT    | `/clubes/{id}`           | `ClubeCreate`       | `ClubeResponse`     | JWT   | 200, 404         |
-| DELETE | `/clubes/{id}`           | —                   | —                   | JWT   | 204, 404         |
-| POST   | `/clubes/{id}/ingressar` | —                   | `IngressarResponse` | JWT   | 201, 404, 409    |
+| Método | Rota                     | Body / Params       | Response            | Auth  | Status Codes     | Cache                              |
+|--------|--------------------------|---------------------|---------------------|-------|------------------|------------------------------------|
+| POST   | `/clubes`                | `ClubeCreate`       | `ClubeResponse`     | JWT   | 200              | invalidate `stats`, `clubes:`      |
+| GET    | `/clubes`                | —                   | `[ClubeResponse]`   | JWT   | 200              | `clubes:list` TTL 30 s             |
+| PUT    | `/clubes/{id}`           | `ClubeCreate`       | `ClubeResponse`     | JWT   | 200, 404         | invalidate `stats`, `clubes:`      |
+| DELETE | `/clubes/{id}`           | —                   | —                   | JWT   | 204, 404         | invalidate `stats`, `clubes:`      |
+| POST   | `/clubes/{id}/ingressar` | —                   | `IngressarResponse` | JWT   | 201, 404, 409    | —                                  |
 
 ### Utilizadores (`/utilizadores`)
 
-| Método | Rota                  | Body / Params       | Response               | Auth | Status Codes |
-|--------|-----------------------|---------------------|------------------------|------|--------------|
-| GET    | `/utilizadores`       | —                   | `[UtilizadorResponse]` | JWT  | 200          |
-| PUT    | `/utilizadores/{id}`  | `UtilizadorCreate`  | `UtilizadorResponse`   | JWT  | 200, 404     |
-| DELETE | `/utilizadores/{id}`  | —                   | —                      | JWT  | 204, 404     |
+| Método | Rota                  | Body / Params       | Response               | Auth | Status Codes | Cache                                        |
+|--------|-----------------------|---------------------|------------------------|------|--------------|----------------------------------------------|
+| GET    | `/utilizadores`       | —                   | `[UtilizadorResponse]` | JWT  | 200          | —                                            |
+| PUT    | `/utilizadores/{id}`  | `UtilizadorCreate`  | `UtilizadorResponse`   | JWT  | 200, 404     | invalidate `stats`, `statstpuser`            |
+| DELETE | `/utilizadores/{id}`  | —                   | —                      | JWT  | 204, 404     | invalidate `stats`, `statstpuser`, `registrations:` |
 
 ### Tipos de Utilizador (`/tipouser`)
 
-| Método | Rota              | Body / Params    | Response             | Auth | Status Codes |
-|--------|--------------------|------------------|----------------------|------|--------------|
-| POST   | `/tipouser`        | `TipoUserCreate` | `TipoUserResponse`  | JWT  | 200          |
-| GET    | `/tipouser`        | —                | `[TipoUserResponse]` | —    | 200          |
-| PUT    | `/tipouser/{id}`   | `TipoUserCreate` | `TipoUserResponse`  | JWT  | 200, 404     |
-| DELETE | `/tipouser/{id}`   | —                | —                    | JWT  | 204, 404     |
+| Método | Rota              | Body / Params    | Response             | Auth | Status Codes | Cache                                         |
+|--------|--------------------|------------------|----------------------|------|--------------|-----------------------------------------------|
+| POST   | `/tipouser`        | `TipoUserCreate` | `TipoUserResponse`  | JWT  | 200          | invalidate `stats`, `statstpuser`, `tipouser:` |
+| GET    | `/tipouser`        | —                | `[TipoUserResponse]` | —    | 200          | `tipouser:list` TTL 120 s                     |
+| PUT    | `/tipouser/{id}`   | `TipoUserCreate` | `TipoUserResponse`  | JWT  | 200, 404     | invalidate `stats`, `statstpuser`, `tipouser:` |
+| DELETE | `/tipouser/{id}`   | —                | —                    | JWT  | 204, 404     | invalidate `stats`, `statstpuser`, `tipouser:` |
 
 ### Mapas (`/mapas`)
 
-| Método | Rota           | Body / Params | Response          | Auth | Status Codes |
-|--------|----------------|---------------|-------------------|------|--------------|
-| POST   | `/mapas`       | `MapaCreate`  | `MapaResponse`    | JWT  | 200, 404     |
-| GET    | `/mapas`       | —             | `[MapaResponse]`  | JWT  | 200          |
-| PUT    | `/mapas/{id}`  | `MapaCreate`  | `MapaResponse`    | JWT  | 200, 404     |
-| DELETE | `/mapas/{id}`  | —             | message           | JWT  | 200, 404     |
+| Método | Rota           | Body / Params | Response          | Auth | Status Codes | Cache                          |
+|--------|----------------|---------------|-------------------|------|--------------|--------------------------------|
+| POST   | `/mapas`       | `MapaCreate`  | `MapaResponse`    | JWT  | 200, 404     | invalidate `stats`, `mapas:`   |
+| GET    | `/mapas`       | —             | `[MapaResponse]`  | JWT  | 200          | `mapas:list` TTL 60 s          |
+| PUT    | `/mapas/{id}`  | `MapaCreate`  | `MapaResponse`    | JWT  | 200, 404     | invalidate `stats`, `mapas:`   |
+| DELETE | `/mapas/{id}`  | —             | message           | JWT  | 200, 404     | invalidate `stats`, `mapas:`   |
 
 ### Estatísticas
 
-| Método | Rota             | Response                                        | Auth |
-|--------|-------------------|-------------------------------------------------|------|
-| GET    | `/stats`          | `{clubes, utilizadores, tipousers, mapas}`      | —    |
-| GET    | `/statstpuser`    | `{tipo_descricao: count, ...}`                  | JWT  |
-| GET    | `/registrations`  | `[{month: str, count: int}]` (12 meses)        | JWT  |
+| Método | Rota             | Response                                        | Auth | Cache                          |
+|--------|-------------------|-------------------------------------------------|------|--------------------------------|
+| GET    | `/stats`          | `{clubes, utilizadores, tipousers, mapas}`      | —    | `stats` TTL 60 s               |
+| GET    | `/statstpuser`    | `{tipo_descricao: count, ...}`                  | JWT  | `statstpuser` TTL 60 s         |
+| GET    | `/registrations`  | `[{month: str, count: int}]` (12 meses)        | JWT  | `registrations:{year}` TTL 300 s |
 
 ---
 
@@ -398,6 +495,11 @@ api/
 import os
 os.environ["SECRET_KEY"] = "test-secret-key-do-not-use-in-production"
 os.environ["ALGORITHM"] = "HS256"
+os.environ.setdefault("MYSQL_HOST", "localhost")
+os.environ.setdefault("MYSQL_PORT", "5432")
+os.environ.setdefault("MYSQL_USER", "test")
+os.environ.setdefault("MYSQL_PASSWORD", "test")
+os.environ.setdefault("MYSQL_DATABASE", "test_db")
 
 import pytest
 from fastapi.testclient import TestClient
@@ -411,6 +513,9 @@ database.init_db = lambda: None  # impedir ligação à BD de produção
 from main import app
 from models import TipoUserModel
 
+import main as _main_module
+_main_module.init_db = lambda: None
+
 SQLALCHEMY_TEST_URL = "sqlite:///./test.db"
 engine = create_engine(SQLALCHEMY_TEST_URL, connect_args={"check_same_thread": False})
 TestSession = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -423,7 +528,7 @@ def setup_db():
     Base.metadata.drop_all(bind=engine)
 
 
-@pytest.fixture
+@pytest.fixture()
 def db():
     session = TestSession()
     try:
@@ -432,7 +537,7 @@ def db():
         session.close()
 
 
-@pytest.fixture
+@pytest.fixture()
 def client(db):
     def override_get_db():
         yield db
@@ -452,12 +557,27 @@ def _seed_tipo(db, descricao="admin"):
     return tipo
 
 
-@pytest.fixture
+@pytest.fixture()
+def tipo(db):
+    """Fixture que insere um TipoUser 'admin'."""
+    return _seed_tipo(db)
+
+
+@pytest.fixture()
 def auth_headers(client, db):
     """Regista utilizador e devolve headers com JWT."""
-    _seed_tipo(db)
-    client.post("/auth/", json={"username": "testuser", "password": "Str0ng!Pass", "tipo_id": 1})
-    resp = client.post("/auth/token", data={"username": "testuser", "password": "Str0ng!Pass", "tipo_id": "1"})
+    tipo = _seed_tipo(db)
+    client.post("/auth/", json={
+        "username": "testuser",
+        "password": "Str0ng!Pass",
+        "tipo_id": tipo.id,
+    })
+    resp = client.post("/auth/token", data={
+        "username": "testuser",
+        "password": "Str0ng!Pass",
+        "tipo_id": str(tipo.id),
+    })
+    assert resp.status_code == 200, f"Login failed: {resp.text}"
     token = resp.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 ```
@@ -473,7 +593,7 @@ def test_register_success(client, db):
     resp = client.post("/auth/", json={
         "username": "newuser",
         "password": "Str0ng!Pass",
-        "tipo_id": 1
+        "tipo_id": 1,
     })
     assert resp.status_code == 201
     assert resp.json()["message"] == "Utilizador Criado com Sucesso"
@@ -491,12 +611,12 @@ def test_login_returns_jwt(client, db):
     client.post("/auth/", json={
         "username": "testuser",
         "password": "Str0ng!Pass",
-        "tipo_id": 1
+        "tipo_id": 1,
     })
     resp = client.post("/auth/token", data={
         "username": "testuser",
         "password": "Str0ng!Pass",
-        "tipo_id": "1"
+        "tipo_id": "1",
     })
     assert resp.status_code == 200
     body = resp.json()
@@ -509,12 +629,12 @@ def test_login_wrong_password(client, db):
     client.post("/auth/", json={
         "username": "testuser",
         "password": "Str0ng!Pass",
-        "tipo_id": 1
+        "tipo_id": 1,
     })
     resp = client.post("/auth/token", data={
         "username": "testuser",
         "password": "wrong",
-        "tipo_id": "1"
+        "tipo_id": "1",
     })
     assert resp.status_code == 401
 
@@ -533,9 +653,8 @@ def test_create_clube(client, auth_headers):
         "email": "teste@clube.pt",
         "telefone": "912345678",
         "localidade": "Lisboa",
-        "evento_at": "2026-06-15"
+        "evento_at": "2026-06-15",
     }, headers=auth_headers)
-
     assert resp.status_code == 200
     data = resp.json()
     assert data["nome"] == "Clube Teste"
@@ -545,7 +664,6 @@ def test_create_clube(client, auth_headers):
 def test_list_clubes(client, auth_headers):
     client.post("/clubes", json={"nome": "C1"}, headers=auth_headers)
     client.post("/clubes", json={"nome": "C2"}, headers=auth_headers)
-
     resp = client.get("/clubes", headers=auth_headers)
     assert resp.status_code == 200
     assert len(resp.json()) == 2
@@ -554,7 +672,6 @@ def test_list_clubes(client, auth_headers):
 def test_update_clube(client, auth_headers):
     create = client.post("/clubes", json={"nome": "Old"}, headers=auth_headers)
     cid = create.json()["id"]
-
     resp = client.put(f"/clubes/{cid}", json={"nome": "New"}, headers=auth_headers)
     assert resp.status_code == 200
     assert resp.json()["nome"] == "New"
@@ -563,7 +680,6 @@ def test_update_clube(client, auth_headers):
 def test_delete_clube(client, auth_headers):
     create = client.post("/clubes", json={"nome": "ToDelete"}, headers=auth_headers)
     cid = create.json()["id"]
-
     resp = client.delete(f"/clubes/{cid}", headers=auth_headers)
     assert resp.status_code == 204
 
@@ -576,7 +692,6 @@ def test_delete_clube_404(client, auth_headers):
 def test_ingressar_clube(client, auth_headers):
     create = client.post("/clubes", json={"nome": "Ingresso"}, headers=auth_headers)
     cid = create.json()["id"]
-
     resp = client.post(f"/clubes/{cid}/ingressar", headers=auth_headers)
     assert resp.status_code == 201
     data = resp.json()
@@ -587,7 +702,6 @@ def test_ingressar_clube(client, auth_headers):
 def test_ingressar_duplicate_409(client, auth_headers):
     create = client.post("/clubes", json={"nome": "Dup"}, headers=auth_headers)
     cid = create.json()["id"]
-
     client.post(f"/clubes/{cid}/ingressar", headers=auth_headers)
     resp = client.post(f"/clubes/{cid}/ingressar", headers=auth_headers)
     assert resp.status_code == 409
@@ -607,15 +721,41 @@ pytest tests/ -v --tb=short
 ```
 
 ```
-tests/test_auth.py::test_register_success          PASSED
-tests/test_auth.py::test_register_duplicate         PASSED
-tests/test_auth.py::test_login_returns_jwt          PASSED
-tests/test_auth.py::test_login_wrong_password       PASSED
-tests/test_auth.py::test_protected_route_no_token   PASSED
-tests/test_clubes.py::test_create_clube             PASSED
-tests/test_clubes.py::test_ingressar_clube          PASSED
-tests/test_clubes.py::test_ingressar_duplicate_409  PASSED
-...
+tests/test_auth.py::test_register_success               PASSED
+tests/test_auth.py::test_register_duplicate_username     PASSED
+tests/test_auth.py::test_login_returns_jwt               PASSED
+tests/test_auth.py::test_login_wrong_password            PASSED
+tests/test_auth.py::test_protected_route_without_token   PASSED
+tests/test_clubes.py::test_create_clube                  PASSED
+tests/test_clubes.py::test_list_clubes                   PASSED
+tests/test_clubes.py::test_update_clube                  PASSED
+tests/test_clubes.py::test_delete_clube                  PASSED
+tests/test_clubes.py::test_delete_clube_404              PASSED
+tests/test_clubes.py::test_ingressar_clube               PASSED
+tests/test_clubes.py::test_ingressar_duplicate_409       PASSED
+tests/test_clubes.py::test_ingressar_clube_inexistente_404 PASSED
+tests/test_utilizadores.py::test_list_utilizadores       PASSED
+tests/test_utilizadores.py::test_update_utilizador       PASSED
+tests/test_utilizadores.py::test_delete_utilizador       PASSED
+tests/test_utilizadores.py::test_delete_utilizador_404   PASSED
+tests/test_tipouser.py::test_create_tipo_user            PASSED
+tests/test_tipouser.py::test_list_tipo_user              PASSED
+tests/test_tipouser.py::test_update_tipo_user            PASSED
+tests/test_tipouser.py::test_update_tipo_user_404        PASSED
+tests/test_tipouser.py::test_delete_tipo_user            PASSED
+tests/test_tipouser.py::test_delete_tipo_user_404        PASSED
+tests/test_mapas.py::test_create_mapa                    PASSED
+tests/test_mapas.py::test_create_mapa_clube_inexistente  PASSED
+tests/test_mapas.py::test_list_mapas                     PASSED
+tests/test_mapas.py::test_update_mapa                    PASSED
+tests/test_mapas.py::test_update_mapa_404                PASSED
+tests/test_mapas.py::test_delete_mapa                    PASSED
+tests/test_mapas.py::test_delete_mapa_404                PASSED
+tests/test_stats.py::test_stats_public                   PASSED
+tests/test_stats.py::test_statstpuser                    PASSED
+tests/test_stats.py::test_registrations                  PASSED
+tests/test_stats.py::test_statstpuser_no_auth            PASSED
+tests/test_stats.py::test_registrations_no_auth          PASSED
 ```
 
 ### Cobertura
@@ -630,6 +770,7 @@ pytest tests/ --cov=. --cov-report=term-missing
 | `main.py`    | ≥ 85%          |
 | `models.py`  | ≥ 95%          |
 | `database.py`| ≥ 80%          |
+| `cache.py`   | ≥ 90%          |
 
 ---
 
@@ -783,7 +924,7 @@ app.add_middleware(
 
 **Status:** Aceite  
 **Contexto:** O projeto é desenvolvido solo. A complexidade operacional de microserviços (deploy, networking, service discovery) não se justifica.  
-**Decisão:** Monólito com separação clara em módulos (`main.py`, `auth.py`, `models.py`, `database.py`) e repositório único (monorepo).  
+**Decisão:** Monólito com separação clara em módulos (`main.py`, `auth.py`, `models.py`, `database.py`, `cache.py`) e repositório único (monorepo).  
 **Consequências:**
 - (+) Deploy simples — um processo `uvicorn` serve toda a API
 - (+) Sem latência de rede entre serviços
@@ -791,6 +932,72 @@ app.add_middleware(
 - (+) Frontend e backend no mesmo repo — versionamento conjunto
 - (−) Escalabilidade limitada a vertical (mitigado pelo ASGI Uvicorn com workers)
 - (−) Se o projeto crescer significativamente, pode precisar de decomposição
+
+### ADR-008: Cache in-memory com TTL e invalidação por prefixo
+
+**Status:** Aceite  
+**Contexto:** Os endpoints de estatísticas (`/stats`, `/statstpuser`, `/registrations`) e listagens (`/clubes`, `/tipouser`, `/mapas`) executam queries agregadas a cada request. Para um projeto single-instance, Redis seria overhead operacional desnecessário.  
+**Decisão:** Cache in-memory com `dict` Python em `cache.py`. Três funções: `cache_get(key)`, `cache_set(key, value, ttl)`, `cache_invalidate(*prefixes)`. TTL calculado com `time.monotonic()`. Invalidação automática em todos os endpoints de escrita (`POST`/`PUT`/`DELETE`), usando prefixos de key para limpar caches relacionadas.
+
+**Implementação:**
+
+```python
+# cache.py
+import time
+from typing import Any
+
+_cache: dict[str, tuple[float, Any]] = {}
+
+def cache_get(key: str) -> Any | None:
+    entry = _cache.get(key)
+    if entry is None:
+        return None
+    expires_at, value = entry
+    if time.monotonic() > expires_at:
+        del _cache[key]
+        return None
+    return value
+
+def cache_set(key: str, value: Any, ttl: int) -> None:
+    _cache[key] = (time.monotonic() + ttl, value)
+
+def cache_invalidate(*prefixes: str) -> None:
+    keys_to_delete = [k for k in _cache if any(k.startswith(p) for p in prefixes)]
+    for k in keys_to_delete:
+        del _cache[k]
+```
+
+```python
+# Uso em main.py — exemplo GET /stats
+@app.get("/stats")
+def get_stats(db: Session = Depends(get_db)):
+    cached = cache_get("stats")
+    if cached is not None:
+        return cached
+    result = {
+        "clubes": db.query(ClubeModel).count(),
+        "utilizadores": db.query(UtilizadorModel).count(),
+        "tipousers": db.query(TipoUserModel).count(),
+        "mapas": db.query(MapaModel).count(),
+    }
+    cache_set("stats", result, ttl=60)
+    return result
+
+# Uso em main.py — exemplo POST /clubes (invalidação)
+db.commit()
+db.refresh(db_clube)
+cache_invalidate("stats", "clubes:")   # limpa stats e lista de clubes
+return db_clube
+```
+
+**Consequências:**
+- (+) Zero dependências externas — `dict` + `time.monotonic()` da stdlib
+- (+) Latência ~0 para cache hits — sem I/O de rede
+- (+) Invalidação precisa por prefixo — `cache_invalidate("stats", "clubes:")` limpa exatamente as keys afetadas
+- (+) Implementação transparente — endpoints mantêm a mesma interface HTTP
+- (−) Cache perdida ao reiniciar o processo (aceitável — cold start apenas)
+- (−) Não partilhada entre workers Uvicorn (adequado para single-worker dev/staging)
+- (−) Sem eviction policy — keys expiram passivamente no próximo `cache_get`
 
 ---
 
@@ -803,10 +1010,11 @@ app.add_middleware(
 ├── package.json                     # deps globais (Bootstrap, Chart.js, Leaflet)
 │
 ├── api/                             # Backend (FastAPI)
-│   ├── main.py                      # App factory, CRUD routes, stats, inscrições
+│   ├── main.py                      # App factory, CRUD routes, stats, inscrições, cache integration
 │   ├── auth.py                      # Router /auth, JWT, Argon2
 │   ├── models.py                    # ORM models + Pydantic schemas
 │   ├── database.py                  # Engine, SessionLocal, get_db(), init_db()
+│   ├── cache.py                     # Cache in-memory: cache_get, cache_set, cache_invalidate
 │   ├── requirements.txt
 │   └── tests/                       # pytest + httpx
 │       ├── conftest.py
