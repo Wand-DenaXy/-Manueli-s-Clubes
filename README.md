@@ -360,6 +360,13 @@ class UtilizadorResponse(BaseModel):      # inclui nested TipoUserResponse
     tipo: TipoUserResponse
     created_at: datetime
 
+class MapaResponse(BaseModel):            # resposta de mapa
+    id: int
+    descricao: str | None = None
+    latitude: float
+    longitude: float
+    clube_id: int
+
 class IngressarResponse(BaseModel):       # resposta de inscrição
     mensagem: str
     clube_id: int
@@ -388,12 +395,21 @@ api/
 ### `conftest.py` — Fixtures
 
 ```python
+import os
+os.environ["SECRET_KEY"] = "test-secret-key-do-not-use-in-production"
+os.environ["ALGORITHM"] = "HS256"
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from database import Base, get_db
+import auth, database
+
+database.init_db = lambda: None  # impedir ligação à BD de produção
+
 from main import app
+from models import TipoUserModel
 
 SQLALCHEMY_TEST_URL = "sqlite:///./test.db"
 engine = create_engine(SQLALCHEMY_TEST_URL, connect_args={"check_same_thread": False})
@@ -421,16 +437,25 @@ def client(db):
     def override_get_db():
         yield db
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[auth.get_db] = override_get_db
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
 
 
+def _seed_tipo(db, descricao="admin"):
+    """Insere um TipoUser diretamente na BD."""
+    tipo = TipoUserModel(descricao=descricao)
+    db.add(tipo)
+    db.commit()
+    db.refresh(tipo)
+    return tipo
+
+
 @pytest.fixture
-def auth_headers(client):
+def auth_headers(client, db):
     """Regista utilizador e devolve headers com JWT."""
-    client.post("/tipouser", json={"descricao": "admin"},
-                headers=_get_temp_token(client))
+    _seed_tipo(db)
     client.post("/auth/", json={"username": "testuser", "password": "Str0ng!Pass", "tipo_id": 1})
     resp = client.post("/auth/token", data={"username": "testuser", "password": "Str0ng!Pass", "tipo_id": "1"})
     token = resp.json()["access_token"]
@@ -440,31 +465,34 @@ def auth_headers(client):
 ### `test_auth.py` — Autenticação
 
 ```python
-def test_register_success(client):
-    # Arrange: criar tipo primeiro
-    # ...setup tipo_id=1...
-    
-    # Act
+from tests.conftest import _seed_tipo
+
+
+def test_register_success(client, db):
+    _seed_tipo(db)
     resp = client.post("/auth/", json={
         "username": "newuser",
         "password": "Str0ng!Pass",
         "tipo_id": 1
     })
-    
-    # Assert
     assert resp.status_code == 201
     assert resp.json()["message"] == "Utilizador Criado com Sucesso"
 
 
-def test_register_duplicate_username(client):
-    # Registar 2x o mesmo username → 400
-    client.post("/auth/", json={"username": "dup", "password": "Pass1!", "tipo_id": 1})
-    resp = client.post("/auth/", json={"username": "dup", "password": "Pass2!", "tipo_id": 1})
+def test_register_duplicate_username(client, db):
+    _seed_tipo(db)
+    client.post("/auth/", json={"username": "dup", "password": "Pass1!abc", "tipo_id": 1})
+    resp = client.post("/auth/", json={"username": "dup", "password": "Pass2!abc", "tipo_id": 1})
     assert resp.status_code == 400
 
 
-def test_login_returns_jwt(client):
-    # ...após registo...
+def test_login_returns_jwt(client, db):
+    _seed_tipo(db)
+    client.post("/auth/", json={
+        "username": "testuser",
+        "password": "Str0ng!Pass",
+        "tipo_id": 1
+    })
     resp = client.post("/auth/token", data={
         "username": "testuser",
         "password": "Str0ng!Pass",
@@ -476,7 +504,13 @@ def test_login_returns_jwt(client):
     assert body["token_type"] == "bearer"
 
 
-def test_login_wrong_password(client):
+def test_login_wrong_password(client, db):
+    _seed_tipo(db)
+    client.post("/auth/", json={
+        "username": "testuser",
+        "password": "Str0ng!Pass",
+        "tipo_id": 1
+    })
     resp = client.post("/auth/token", data={
         "username": "testuser",
         "password": "wrong",
@@ -723,24 +757,23 @@ except IntegrityError:
 - (−) Conteúdo client-only invisível para crawlers sem JavaScript
 - (−) Ligeiro flash durante hidratação em conexões lentas
 
-### ADR-006: CORS com origin explícita + credentials
+### ADR-006: CORS com wildcard origin
 
 **Status:** Aceite (atualizado por ADR-003)  
-**Contexto:** Com a adoção de `httpOnly cookies` (ADR-003), o browser precisa de `credentials: 'include'` nos fetch. A spec CORS exige que `allow_credentials=True` acompanhe um `allow_origins` **explícito** — wildcard `*` é rejeitado.  
-**Decisão:** `allow_origins=["http://localhost:3000"]` com `allow_credentials=True` em dev. Em produção, apontar para o domínio real.  
+**Contexto:** Com a adoção de Bearer tokens no header `Authorization` (ADR-003), o browser não precisa de enviar cookies cross-origin. Isto permite usar `allow_origins=["*"]` sem restrições, já que não é necessário `allow_credentials=True`.  
+**Decisão:** `allow_origins=["*"]` com `allow_credentials=False` em dev. Em produção, restringir para o domínio real.  
 **Consequências:**
-- (+) Cookies `Set-Cookie` e `Cookie` funcionam cross-origin
-- (+) Sem wildcard — superfície de ataque reduzida mesmo em dev
-- (−) Novo domínio = nova entrada em `allow_origins`
-- (−) Em ambientes com múltiplos frontends (staging, preview), requer lista dinâmica via env var
+- (+) Configuração simples — qualquer origin pode fazer requests à API em dev
+- (+) Sem necessidade de listar origins explicitamente durante desenvolvimento
+- (+) Compatível com qualquer frontend sem configuração adicional
+- (−) Em produção, deve-se restringir `allow_origins` ao domínio real para reduzir superfície de ataque
 
 ```python
-# Configuração recomendada
-allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+# Configuração atual (dev)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -758,96 +791,6 @@ app.add_middleware(
 - (+) Frontend e backend no mesmo repo — versionamento conjunto
 - (−) Escalabilidade limitada a vertical (mitigado pelo ASGI Uvicorn com workers)
 - (−) Se o projeto crescer significativamente, pode precisar de decomposição
-
-### ADR-008: Caching in-memory com invalidação por write
-
-**Status:** Aceite  
-**Contexto:** Os endpoints de estatísticas (`/stats`, `/statstpuser`, `/registrations`) executam queries agregadas (`COUNT`, `GROUP BY`, `EXTRACT`) em cada request. Estas queries são caras relativa­mente ao overhead de um simples SELECT, mas os dados mudam pouco (novos registos são esporádicos).  
-**Decisão:** Cache in-memory (dict Python) com TTL, invalidado em operações de escrita (POST/PUT/DELETE). Sem Redis — o deploy mantém-se single-process.
-
-**Implementação:**
-
-```python
-# cache.py
-import time
-from typing import Any
-
-_cache: dict[str, tuple[float, Any]] = {}
-
-def cache_get(key: str) -> Any | None:
-    """Devolve valor se existir e não tiver expirado."""
-    entry = _cache.get(key)
-    if entry is None:
-        return None
-    expires_at, value = entry
-    if time.monotonic() > expires_at:
-        del _cache[key]
-        return None
-    return value
-
-def cache_set(key: str, value: Any, ttl: int = 60) -> None:
-    """Guarda valor com TTL em segundos."""
-    _cache[key] = (time.monotonic() + ttl, value)
-
-def cache_invalidate(*prefixes: str) -> None:
-    """Invalida todas as keys que começam com qualquer dos prefixos."""
-    keys_to_delete = [
-        k for k in _cache
-        if any(k.startswith(p) for p in prefixes)
-    ]
-    for k in keys_to_delete:
-        del _cache[k]
-```
-
-**Estratégia por endpoint:**
-
-| Endpoint           | Cache Key              | TTL   | Invalidado por                       |
-|--------------------|------------------------|-------|--------------------------------------|
-| `GET /stats`       | `stats`                | 60s   | POST/PUT/DELETE em clubes, utilizadores, mapas |
-| `GET /statstpuser` | `statstpuser`          | 60s   | POST/PUT/DELETE em utilizadores, tipouser |
-| `GET /registrations`| `registrations:{year}`| 300s  | POST /auth/ (novo registo)           |
-| `GET /clubes`      | `clubes:list`          | 30s   | POST/PUT/DELETE em clubes            |
-| `GET /tipouser`    | `tipouser:list`        | 120s  | POST/PUT/DELETE em tipouser          |
-
-**Padrão de uso nos endpoints:**
-
-```python
-from cache import cache_get, cache_set, cache_invalidate
-
-@app.get("/stats")
-def get_stats(db: Session = Depends(get_db)):
-    cached = cache_get("stats")
-    if cached is not None:
-        return cached
-
-    result = {
-        "clubes": db.query(ClubeModel).count(),
-        "utilizadores": db.query(UtilizadorModel).count(),
-        "tipousers": db.query(TipoUserModel).count(),
-        "mapas": db.query(MapaModel).count(),
-    }
-    cache_set("stats", result, ttl=60)
-    return result
-
-@app.post("/clubes", response_model=ClubeResponse)
-def create_clube(clube: ClubeCreate, db = Depends(get_db), user = Depends(get_current_user)):
-    db_clube = ClubeModel(**clube.dict())
-    db.add(db_clube)
-    db.commit()
-    db.refresh(db_clube)
-    cache_invalidate("stats", "clubes:")   # invalida stats e lista de clubes
-    return db_clube
-```
-
-**Consequências:**
-- (+) Queries agregadas executam no máximo 1x por TTL — redução de ~90% de queries em endpoints de leitura frequente
-- (+) Zero dependências externas (sem Redis/Memcached)
-- (+) Invalidação cirúrgica — write operations limpam apenas keys afetadas
-- (+) `time.monotonic()` imune a alterações de relógio do sistema
-- (−) Cache não partilhada entre workers — se `uvicorn --workers N > 1`, cada worker tem cache independente (aceitável para single-process dev)
-- (−) Sem LRU/maxsize — em cenários extremos, a memória pode crescer (mitigado pelo número finito de cache keys)
-
-**Evolução:** Migrar para Redis quando o deploy usar múltiplos workers ou instâncias. A interface `cache_get/cache_set/cache_invalidate` permite substituir a implementação sem alterar os endpoints.
 
 ---
 
