@@ -812,7 +812,7 @@ app.add_middleware(
 ### ADR-007: Monólito modular em vez de microserviços
 
 **Status:** Aceite  
-**Contexto:** O projeto é desenvolvido por uma equipa pequena. A complexidade operacional de microserviços (deploy, networking, service discovery) não se justifica.  
+**Contexto:** O projeto é desenvolvido solo. A complexidade operacional de microserviços (deploy, networking, service discovery) não se justifica.  
 **Decisão:** Monólito com separação clara em módulos (`main.py`, `auth.py`, `models.py`, `database.py`) e repositório único (monorepo).  
 **Consequências:**
 - (+) Deploy simples — um processo `uvicorn` serve toda a API
