@@ -2,6 +2,8 @@
 
 Uma aplicação web full-stack para gestão de clubes, desenvolvida com **Nuxt 4 (Vue 3)** no frontend e **FastAPI (Python)** no backend, com autenticação JWT, mapas interativos, dashboard com gráficos e calendário.
 
+<img width="1000" height="500" alt="ManueliClube" src="https://github.com/user-attachments/assets/786aee57-cdbc-4be2-823b-51c221d7e4b8" />
+
 ---
 
 ## Descrição do Projeto
