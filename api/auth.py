@@ -54,8 +54,6 @@ def get_db():
 db_dependency = Annotated[Session, Depends(get_db)]
 
 
-
-
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def register(db: db_dependency, create_user_request: CreateUserRequest):
     user = db.query(UtilizadorModel).filter(

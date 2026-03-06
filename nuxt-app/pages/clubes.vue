@@ -32,7 +32,7 @@
       </svg>
       Mapas
     </NuxtLink>
-    <NuxtLink to="/calendario" class="nav-item" :class="{ active: route.path === '/calendario' }">
+    <NuxtLink to="/calendario" class="nav-item">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <rect x="3" y="4" width="18" height="18" rx="2"/>
           <line x1="16" y1="2" x2="16" y2="6"/>
@@ -152,6 +152,7 @@
                   <th>Email</th>
                   <th>Telefone</th>
                   <th>Localidade</th>
+                  <th>Proximo Evento</th>
                   <th class="th-actions">Ações</th>
                 </tr>
               </thead>
@@ -211,14 +212,24 @@ async function listarClubes() {
           <td><input id="email_${c.id}" value="${c.email || ''}" class="cell-input" /></td>
           <td><input id="tel_${c.id}" value="${c.telefone || ''}" class="cell-input" /></td>
           <td><input id="localidade_${c.id}" value="${c.localidade || ''}" class="cell-input" /></td>
+          <td><input id="evento_at_${c.id}" value="${c.evento_at || ''}" class="cell-input" /></td>
           <td class="td-actions">
+            <button class="btn-save" onclick="atualizarClube(${c.id})">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+                <polyline points="17 21 17 13 7 13 7 21"/>
+                <polyline points="7 3 7 8 15 8"/>
+              </svg>
+              Guardar
+            </button>
             ${isAdmin
-              ? `<button class="btn-save" onclick="atualizarClube(${c.id})">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                  Guardar
-                </button>
-                <button class="btn-del" onclick="apagarClube(${c.id})">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+              ? `<button class="btn-del" onclick="apagarClube(${c.id})">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6l-1 14H6L5 6"/>
+                    <path d="M10 11v6M14 11v6"/>
+                    <path d="M9 6V4h6v2"/>
+                  </svg>
                   Apagar
                 </button>`
               : `<span class="no-perm">Apenas admins</span>`
@@ -257,11 +268,14 @@ async function registaClube() {
 
 async function atualizarClube(id) {
   const token = localStorage.getItem('access_token')
+  let evento = document.getElementById(`evento_at_${id}`).value
+
   const dados = {
     nome: document.getElementById(`nome_${id}`).value,
     email: document.getElementById(`email_${id}`).value,
     telefone: document.getElementById(`tel_${id}`).value,
     localidade: document.getElementById(`localidade_${id}`).value,
+    evento_at: evento === '' ? null : evento
   }
   try {
     const res = await fetch(`${getBaseUrl()}/clubes/${id}`, {

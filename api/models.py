@@ -1,6 +1,7 @@
-from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime, Table, Text,ForeignKey
+from datetime import datetime,date
+from sqlalchemy import Column, Integer, String, DateTime, Table, Text,ForeignKey,UniqueConstraint,Date
 from sqlalchemy import Float
+from typing import Optional
 from pydantic import BaseModel
 from sqlalchemy.orm import relationship
 from database import Base 
@@ -13,9 +14,27 @@ class ClubeModel(Base):
     email = Column(String(150), unique=True)
     telefone = Column(String(20))
     localidade = Column(String(100))
+    evento_at = Column(Date, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)  
 
     mapas = relationship("MapaModel", back_populates="clube", cascade="all, delete")
+    membros = relationship("MembroClubeModel",back_populates="clube",cascade="all, delete-orphan")
+
+class MembroClubeModel(Base):
+    __tablename__ = "membro_clube"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    utilizador_id = Column(Integer, ForeignKey("utilizador.id"), nullable=False)
+    clube_id = Column(Integer, ForeignKey("clubes.id"), nullable=False)
+    inscrito_em = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("utilizador_id", "clube_id", name="uq_membro_clube"),
+    )
+
+    utilizador = relationship("UtilizadorModel", back_populates="clubes_inscritos")
+    clube = relationship("ClubeModel", back_populates="membros")
+
     
 class TipoUserModel(Base):
     __tablename__ = "tipouser"
@@ -35,6 +54,7 @@ class UtilizadorModel(Base):
     tipo_id = Column(Integer, ForeignKey("tipouser.id"), nullable=False)
 
     tipo = relationship("TipoUserModel", back_populates="utilizadores")
+    clubes_inscritos = relationship("MembroClubeModel",back_populates="utilizador",cascade="all, delete-orphan")
 
 
 class MapaModel(Base):
@@ -55,6 +75,7 @@ class ClubeCreate(BaseModel):
     email: str | None = None
     telefone: str | None = None
     localidade: str | None = None
+    evento_at: Optional[date] = None
 
 
 class ClubeResponse(ClubeCreate):
@@ -107,4 +128,12 @@ class MapaResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class IngressarResponse(BaseModel):
+    mensagem:    str
+    clube_id:    int
+    clube_nome:  str
+    inscrito_em: datetime
+
+    class Config:
+        from_attributes = True
 

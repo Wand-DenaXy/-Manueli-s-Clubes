@@ -1,17 +1,18 @@
 # Manueli's Clubes – Documentação do Projeto
 
-Uma aplicação web full-stack para gestão de clubes, desenvolvida com **Nuxt 4 (Vue 3)** no frontend e **FastAPI (Python)** no backend, com autenticação JWT, mapas interativos, dashboard com gráficos e calendário.
+Uma aplicação web full-stack para gestão de clubes, desenvolvida com **Nuxt 4 (Vue 3)** no frontend e **FastAPI (Python)** no backend, com autenticação JWT, inscrição em clubes, mapas interativos, dashboard com gráficos e calendário.
 
 ---
 
 ## Descrição do Projeto
 
-**Manueli's Clubes** é uma plataforma web que permite a criação, edição, listagem e remoção de clubes, gestão de utilizadores com diferentes níveis de acesso, visualização de localizações em mapas interativos, e consulta de estatísticas através de um dashboard dinâmico.
+**Manueli's Clubes** é uma plataforma web que permite a criação, edição, listagem e remoção de clubes, gestão de utilizadores com diferentes níveis de acesso, inscrição de membros em clubes, visualização de localizações em mapas interativos, e consulta de estatísticas através de um dashboard dinâmico.
 
 O projeto foi desenvolvido com foco em:
 - Arquitetura **API REST** com separação clara entre frontend e backend
 - Autenticação e autorização com **JWT (JSON Web Tokens)**
 - Operações **CRUD assíncronas** via `fetch` API
+- Sistema de **inscrição em clubes** com controlo de duplicação
 - Interface moderna, responsiva e com tema **dark**
 
 ---
@@ -19,11 +20,12 @@ O projeto foi desenvolvido com foco em:
 ## Principais Funcionalidades
 
 - **Autenticação & Autorização** — Sistema de login com tokens JWT, suporte a diferentes tipos de utilizador (admin, gestor, etc.) e hashing de passwords com Argon2
-- **Gestão de Clubes** — CRUD completo de clubes (nome, email, telefone, localidade) com controlo de permissões por tipo de utilizador
+- **Gestão de Clubes** — CRUD completo de clubes (nome, email, telefone, localidade, data de evento) com controlo de permissões por tipo de utilizador
+- **Inscrição em Clubes** — Utilizadores podem ingressar em clubes através do calendário, com prevenção de inscrições duplicadas via constraint única na BD
 - **Gestão de Utilizadores** — Registo, listagem, edição e remoção de utilizadores com tipos de acesso configuráveis
 - **Dashboard com Estatísticas** — Painel com KPIs, gráfico de crescimento de utilizadores ao longo do ano e distribuição por categorias (Chart.js)
 - **Mapas Interativos** — Visualização geográfica dos clubes com Leaflet, criação de pontos no mapa associados a clubes
-- **Calendário de Clubes** — Visualização de clubes num calendário interativo (FullCalendar) com possibilidade de inscrição
+- **Calendário de Clubes** — Visualização de clubes num calendário interativo (FullCalendar) com modal de detalhes e inscrição direta
 - **Página "Sobre Nós"** — Apresentação da missão, valores e equipa, com estatísticas em tempo real
 
 ---
@@ -73,7 +75,7 @@ O projeto foi desenvolvido com foco em:
 ┌──────────────────────────────────┐
 │           Backend API            │
 │    FastAPI (Python) :8000        │
-│  Rotas REST + Auth               │
+│  Rotas REST + Auth + Inscrições  │
 └──────────────┬───────────────────┘
                │  SQLAlchemy ORM
                ▼
@@ -81,7 +83,7 @@ O projeto foi desenvolvido com foco em:
 │        Base de Dados             │
 │     PostgreSQL (psycopg2)        │
 │  Tabelas: clubes, utilizador,   │
-│  tipouser, mapas                 │
+│  tipouser, mapas, membro_clube  │
 └──────────────────────────────────┘
 ```
 
@@ -96,7 +98,7 @@ O projeto foi desenvolvido com foco em:
 ├── package.json                      # Dependências globais (Bootstrap, Chart.js, Leaflet, etc.)
 │
 ├── api/                              # Backend — API REST (FastAPI)
-│   ├── main.py                       # Entry point da API, rotas CRUD e endpoints de estatísticas
+│   ├── main.py                       # Entry point da API, rotas CRUD, inscrições e estatísticas
 │   ├── auth.py                       # Autenticação JWT, registo e login de utilizadores
 │   ├── models.py                     # Modelos SQLAlchemy (ORM) e schemas Pydantic
 │   ├── database.py                   # Configuração da ligação à BD (PostgreSQL via SQLAlchemy)
@@ -141,9 +143,9 @@ O projeto foi desenvolvido com foco em:
 
 | Ficheiro         | Propósito                                                                                                                                   |
 |------------------|---------------------------------------------------------------------------------------------------------------------------------------------|
-| `main.py`        | Entry point da API FastAPI. Define todas as rotas CRUD para clubes, utilizadores, tipos de utilizador e mapas. Inclui endpoints de estatísticas (`/stats`, `/statstpuser`, `/registrations`). Configura CORS e inicializa a BD no startup. |
+| `main.py`        | Entry point da API FastAPI. Define todas as rotas CRUD para clubes, utilizadores, tipos de utilizador e mapas. Inclui endpoint de inscrição em clubes (`POST /clubes/{id}/ingressar`), endpoints de estatísticas (`/stats`, `/statstpuser`, `/registrations`). Configura CORS e inicializa a BD no startup. |
 | `auth.py`        | Módulo de autenticação. Implementa registo (`POST /auth/`), login com geração de token JWT (`POST /auth/token`), verificação de passwords com Argon2, e middleware `get_current_user` para proteger rotas. |
-| `models.py`      | Define os modelos ORM SQLAlchemy (`ClubeModel`, `UtilizadorModel`, `TipoUserModel`, `MapaModel`) e os schemas Pydantic para validação de entrada/saída (`ClubeCreate`, `ClubeResponse`, etc.). Inclui relações entre tabelas (clube↔mapas, tipo↔utilizadores). |
+| `models.py`      | Define os modelos ORM SQLAlchemy (`ClubeModel`, `UtilizadorModel`, `TipoUserModel`, `MapaModel`, `MembroClubeModel`) e os schemas Pydantic para validação de entrada/saída (`ClubeCreate`, `ClubeResponse`, `IngressarResponse`, etc.). Inclui relações entre tabelas (clube↔mapas, clube↔membros, tipo↔utilizadores, utilizador↔clubes_inscritos). |
 | `database.py`    | Configuração da ligação à BD PostgreSQL via SQLAlchemy. Lê credenciais de variáveis de ambiente (`.env`). Fornece o dependency `get_db()` para injeção de sessão nas rotas e `init_db()` para criação automática de tabelas. |
 | `requirements.txt` | Lista de dependências Python: FastAPI, Uvicorn, SQLAlchemy, psycopg2, passlib, python-jose, argon2_cffi, etc. |
 
@@ -155,9 +157,9 @@ O projeto foi desenvolvido com foco em:
 | `index.vue`       | Landing page pública. Apresenta hero com mensagem de boas-vindas, botões de ação, e estatísticas em tempo real (clubes, membros, localizações) obtidas da API `/stats`. |
 | `login.vue`       | Página de autenticação. Formulário com username, password e seleção de tipo de utilizador (carregado da API). Envia credenciais via `FormData` para `/auth/token` e guarda o JWT no `localStorage`. |
 | `dashboard.vue`   | Painel de controlo protegido. Exibe KPIs (total clubes, membros, tipos), gráfico de linha de registos por mês (`/registrations`) e gráfico doughnut de distribuição por tipo (`/statstpuser`). Requer autenticação via JWT. |
-| `clubes.vue`      | Página de gestão de clubes. Formulário para criar novos clubes e tabela com edição inline. Operações de guardar e apagar com confirmação via SweetAlert2. Controlo de permissões: apenas admins (tipo_id=1) podem editar/apagar. |
+| `clubes.vue`      | Página de gestão de clubes. Formulário para criar novos clubes (com campo de data de evento) e tabela com edição inline. Operações de guardar e apagar com confirmação via SweetAlert2. Controlo de permissões: apenas admins (tipo_id=1) podem editar/apagar. |
 | `mapas.vue`       | Página de mapas interativos com Leaflet. Painel lateral com lista de clubes e pontos. Permite adicionar novos pontos no mapa (clique no mapa ou coordenadas manuais), associados a clubes. Controlo de acesso para admins e gestores. |
-| `calendario.vue`  | Calendário com FullCalendar. Cada clube aparece como evento no mês em que foi criado. Modal de detalhe permite inscrever-se num clube. Usa `<ClientOnly>` para compatibilidade com SSR do Nuxt. |
+| `calendario.vue`  | Calendário com FullCalendar. Cada clube aparece como evento na sua data. Modal de detalhe permite inscrever-se num clube via `POST /clubes/{id}/ingressar`. Usa `<ClientOnly>` para compatibilidade com SSR do Nuxt. |
 | `chat.vue`        | Página de chat da plataforma. |
 | `aboutus.vue`     | Página "Sobre nós". Apresenta missão, valores (Comunidade, Autenticidade, Abertura, Movimento), equipa (Manueli Silvestre — Fundador & CEO) e CTA para registo. Carrega estatísticas em tempo real. |
 
@@ -174,18 +176,33 @@ O projeto foi desenvolvido com foco em:
 └─────────────────┘       │ username        │
                           │ password        │
                           │ created_at      │
-                          └─────────────────┘
-
+                          └────────┬────────┘
+                                   │
+                                   │ 1:N
+                                   ▼
+                          ┌─────────────────┐
+                          │  membro_clube   │
+                          ├─────────────────┤
+                          │ id (PK)         │
+                          │ utilizador_id(FK)│
+                          │ clube_id (FK)   │
+                          │ inscrito_em     │
+                          │ UQ(util,clube)  │
+                          └────────┬────────┘
+                                   │
+                                   │ N:1
+                                   ▼
 ┌─────────────────┐       ┌─────────────────┐
-│     clubes      │       │     mapas       │
+│     mapas       │       │     clubes      │
 ├─────────────────┤       ├─────────────────┤
-│ id (PK)         │◄──────│ clube_id (FK)   │
-│ nome            │  1:N  │ id (PK)         │
-│ email           │       │ descricao       │
-│ telefone        │       │ latitude        │
-│ localidade      │       │ longitude       │
-│ created_at      │       └─────────────────┘
-└─────────────────┘
+│ id (PK)         │       │ id (PK)         │
+│ descricao       │──────►│ nome            │
+│ latitude        │  N:1  │ email           │
+│ longitude       │       │ telefone        │
+│ clube_id (FK)   │       │ localidade      │
+└─────────────────┘       │ evento_at       │
+                          │ created_at      │
+                          └─────────────────┘
 ```
 
 ---
@@ -201,12 +218,13 @@ O projeto foi desenvolvido com foco em:
 
 ### Clubes (`/clubes`)
 
-| Método | Rota               | Descrição                | Autenticação |
-|--------|---------------------|--------------------------|--------------|
-| POST   | `/clubes`           | Criar novo clube         | JWT          |
-| GET    | `/clubes`           | Listar todos os clubes   | JWT          |
-| PUT    | `/clubes/{id}`      | Atualizar clube          | JWT          |
-| DELETE | `/clubes/{id}`      | Apagar clube             | JWT          |
+| Método | Rota                          | Descrição                        | Autenticação |
+|--------|-------------------------------|----------------------------------|--------------|
+| POST   | `/clubes`                     | Criar novo clube                 | JWT          |
+| GET    | `/clubes`                     | Listar todos os clubes           | JWT          |
+| PUT    | `/clubes/{id}`                | Atualizar clube                  | JWT          |
+| DELETE | `/clubes/{id}`                | Apagar clube                     | JWT          |
+| POST   | `/clubes/{id}/ingressar`      | Inscrever-se num clube           | JWT          |
 
 ### Utilizadores (`/utilizadores`)
 
@@ -280,8 +298,8 @@ Utilizador                 Frontend (Vue)              API (FastAPI)           P
   ├─ Preenche formulário       │                            │                      │
   ├─ Clica "Criar Clube" ────►│                            │                      │
   │                            ├─ POST /clubes ────────────►│                      │
-  │                            │  { nome, email, tel, loc } ├─ Valida JWT          │
-  │                            │                            ├─ INSERT INTO clubes ─►│
+  │                            │  { nome, email, tel, loc,  ├─ Valida JWT          │
+  │                            │    evento_at }             ├─ INSERT INTO clubes ─►│
   │                            │                            │◄─ clube criado ───────┤
   │                            │◄─── ClubeResponse ─────────┤                      │
   │◄── SweetAlert "Sucesso!" ──┤                            │                      │
@@ -289,6 +307,30 @@ Utilizador                 Frontend (Vue)              API (FastAPI)           P
   │                            │                            ├─ SELECT * FROM clubes►│
   │                            │◄─── [ clubes ] ────────────┤◄─────────────────────┤
   │◄── Tabela atualizada ──────┤                            │                      │
+```
+
+---
+
+## Fluxo de Inscrição em Clube
+
+```
+Utilizador                 Calendário (Vue)            API (FastAPI)           PostgreSQL
+  │                            │                            │                      │
+  ├─ Clica num evento ────────►│                            │                      │
+  │                            ├─ Abre modal de detalhe     │                      │
+  │                            │  (nome, email, tel, loc)   │                      │
+  │                            │                            │                      │
+  ├─ Clica "Ingressar" ──────►│                            │                      │
+  │                            ├─ POST /clubes/{id}/        │                      │
+  │                            │  ingressar ───────────────►│                      │
+  │                            │                            ├─ Valida JWT          │
+  │                            │                            ├─ Verifica se clube   │
+  │                            │                            │  existe              │
+  │                            │                            ├─ INSERT membro_clube─►│
+  │                            │                            │  (UQ constraint)     │
+  │                            │                            │◄─ inscrito ───────────┤
+  │                            │◄─── IngressarResponse ─────┤                      │
+  │◄── "Inscrito com sucesso!" ┤                            │                      │
 ```
 
 ---
@@ -343,6 +385,7 @@ Local:    http://localhost:3000/
 3. Criar conta via API (`POST /auth/`) ou usar credenciais existentes
 4. Após login, é redirecionado para o **Dashboard**
 5. Navegar pela sidebar: **Clubes**, **Mapas**, **Calendário**
+6. No **Calendário**, clicar num clube e **"Ingressar"** para se inscrever
 
 ---
 
@@ -361,6 +404,13 @@ Local:    http://localhost:3000/
 - Tokens JWT permitem autenticação stateless e escalável
 - Argon2 é o algoritmo de hashing vencedor da Password Hashing Competition, mais seguro que bcrypt
 - Diferentes tipos de utilizador permitem controlo de acesso granular
+
+### Tabela de Inscrição (membro_clube) com UniqueConstraint
+
+**Justificação:**
+- Relação muitos-para-muitos entre utilizadores e clubes
+- `UniqueConstraint("utilizador_id", "clube_id")` impede inscrições duplicadas a nível de BD
+- `IntegrityError` tratado na API para devolver resposta amigável (HTTP 409)
 
 ### Nuxt 4 com SSR
 

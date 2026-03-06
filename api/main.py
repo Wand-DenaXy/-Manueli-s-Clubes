@@ -9,7 +9,6 @@ from dotenv import load_dotenv
 from typing import Annotated
 from datetime import datetime
 from sqlalchemy import extract,func
-
 from auth import get_current_user
 from sqlalchemy.orm import joinedload
 from database import get_db, init_db
@@ -17,7 +16,8 @@ from models import (
     ClubeModel, ClubeCreate, ClubeResponse,
     UtilizadorModel, UtilizadorCreate, UtilizadorResponse,
     TipoUserModel, TipoUserCreate, TipoUserResponse,
-    MapaModel, MapaCreate, MapaResponse
+    MapaModel, MapaCreate, MapaResponse,
+    MembroClubeModel, IngressarResponse
 )
 
 app = FastAPI(title="API Manueli's Clubes", description="API para gestão de clubes e utilizadores")
@@ -32,8 +32,6 @@ app.add_middleware(
 db_dependency = Annotated[Session, Depends(get_db)]
 user_dependency = Annotated[UtilizadorModel, Depends(get_current_user)]
 load_dotenv()
-OPENAI_API_KEY = "https://router.huggingface.co/v1"
-client = OpenAI(api_key=OPENAI_API_KEY)
 
 @app.on_event("startup")
 def startup():
@@ -110,7 +108,6 @@ def registrations_by_month(
 
     data = [{"month": MESES[m - 1], "count": counts[m]} for m in range(1, 13)]
     return data
-
 
 @app.post("/clubes", response_model=ClubeResponse)
 def create_clube(   
@@ -304,3 +301,36 @@ def delete_mapa(mapa_id: int, db: Session = Depends(get_db)):
     db.commit()
 
     return {"message": "Mapa apagado com sucesso"}
+
+@app.post("/clubes/{clube_id}/ingressar", response_model=IngressarResponse, status_code=201)
+def ingressar_clube(
+    clube_id: int,
+    db: Session = Depends(get_db),
+    user: UtilizadorModel = Depends(get_current_user),
+):
+    clube = db.query(ClubeModel).filter(ClubeModel.id == clube_id).first()
+    if not clube:
+        raise HTTPException(status_code=404, detail="Clube não encontrado")
+
+    nova_inscricao = MembroClubeModel(
+        utilizador_id=user["id"],
+        clube_id=clube_id,
+    )
+    db.add(nova_inscricao)
+
+    try:
+        db.commit()
+        db.refresh(nova_inscricao)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail=f"Já está inscrito no clube '{clube.nome}'",
+        )
+
+    return IngressarResponse(
+        mensagem=f"Inscrito com sucesso no clube '{clube.nome}'!",
+        clube_id=clube.id,
+        clube_nome=clube.nome,
+        inscrito_em=nova_inscricao.inscrito_em,
+    )
