@@ -164,15 +164,15 @@ sequenceDiagram
         A-->>F: 401 Unauthorized
     else Credenciais válidas
         A->>A: jwt.encode({sub, id, tipo_id, exp+30min}, SECRET_KEY, HS256)
-        A-->>F: 200 Set-Cookie: access_token=<JWT>; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=1800
+        A-->>F: 200 Set-Cookie: access_token=#lt;JWT#gt;#59; HttpOnly#59; Secure#59; SameSite=Lax#59; Path=/#59; Max-Age=1800
     end
 
     F->>F: navigateTo("/dashboard")
 
     Note over F,A: Pedidos subsequentes — cookie enviado automaticamente
 
-    F->>A: GET /clubes (Cookie: access_token=<JWT>)
-    A->>A: jwt.decode(request.cookies["access_token"])
+    F->>A: GET /clubes (Cookie: access_token=#lt;JWT#gt;)
+    A->>A: jwt.decode(request.cookies[#quot;access_token#quot;])
     alt Token inválido/expirado
         A-->>F: 401 Unauthorized
     else Token válido
@@ -192,7 +192,7 @@ sequenceDiagram
 
     U->>F: Clica "Sair"
     F->>A: POST /auth/logout (credentials: include)
-    A-->>F: 200 Set-Cookie: access_token=""; HttpOnly; Max-Age=0; Path=/
+    A-->>F: 200 Set-Cookie: access_token=#quot;#quot;#59; HttpOnly#59; Max-Age=0#59; Path=/
     F->>F: navigateTo("/login")
 ```
 
