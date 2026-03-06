@@ -12,9 +12,6 @@ from jose import JWTError, jwt
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-SECRET_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-ALGORITHM = "HS256"
-
 bcrypt_context = CryptContext(schemes=["argon2"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 

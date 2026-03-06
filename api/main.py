@@ -17,8 +17,7 @@ from models import (
     ClubeModel, ClubeCreate, ClubeResponse,
     UtilizadorModel, UtilizadorCreate, UtilizadorResponse,
     TipoUserModel, TipoUserCreate, TipoUserResponse,
-    MapaModel, MapaCreate, MapaResponse,
-    ChatRequest
+    MapaModel, MapaCreate, MapaResponse
 )
 
 app = FastAPI(title="API Manueli's Clubes", description="API para gestão de clubes e utilizadores")
@@ -112,43 +111,6 @@ def registrations_by_month(
     data = [{"month": MESES[m - 1], "count": counts[m]} for m in range(1, 13)]
     return data
 
-@app.post("/chat")
-def chat_ai(data: ChatRequest, db: Session = Depends(get_db), user: UtilizadorModel = Depends(get_current_user)):
-    message = data.message.lower()
-
-    # CASO 1: consulta sobre clubes do mês
-    if ("clubes" in message and "mês") or ("mes" in message):
-        current_month = datetime.utcnow().month
-        current_year = datetime.utcnow().year
-
-        total = (
-            db.query(func.count(ClubeModel.id))
-            .filter(
-                extract("month", ClubeModel.created_at) == current_month,
-                extract("year", ClubeModel.created_at) == current_year
-            )
-            .scalar()
-        )
-
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "És assistente da empresa Puro Encanto."},
-                {"role": "user",
-                 "content": f"O utilizador perguntou: '{data.message}'. Tivemos {total} eventos este mês. Responde de forma profissional."}
-            ]
-        )
-        return {"response": response.choices[0].message.content}
-
-    # CASO 2: qualquer outra pergunta
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "És assistente da empresa Puro Encanto."},
-            {"role": "user", "content": data.message}
-        ]
-    )
-    return {"response": response.choices[0].message.content}
 
 @app.post("/clubes", response_model=ClubeResponse)
 def create_clube(   
