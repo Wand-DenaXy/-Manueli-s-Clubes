@@ -291,13 +291,17 @@ def update_mapa(
     return db_mapa
 
 @app.delete("/mapas/{mapa_id}", status_code=200)
-def delete_mapa(mapa_id: int, db: Session = Depends(get_db)):
+def delete_mapa(
+    mapa_id: int,
+    db: Session = Depends(get_db),
+    user: UtilizadorModel = Depends(get_current_user)
+):
     mapa = db.query(MapaModel).filter(MapaModel.id == mapa_id).first()
 
     if not mapa:
         raise HTTPException(status_code=404, detail="Mapa não encontrado")
 
-    db.delete(mapa) 
+    db.delete(mapa)
     db.commit()
 
     return {"message": "Mapa apagado com sucesso"}

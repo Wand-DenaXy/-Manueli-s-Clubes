@@ -4,6 +4,8 @@ from fastapi import APIRouter, HTTPException, Depends, Form
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from starlette import status
+import os
+from dotenv import load_dotenv
 from database import SessionLocal
 from models import UtilizadorModel
 from passlib.context import CryptContext
@@ -11,6 +13,11 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+load_dotenv()
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
+
+
 
 bcrypt_context = CryptContext(schemes=["argon2"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
@@ -52,6 +59,8 @@ def get_db():
 
 
 db_dependency = Annotated[Session, Depends(get_db)]
+
+
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
