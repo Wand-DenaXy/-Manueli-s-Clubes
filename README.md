@@ -57,7 +57,7 @@ C4Container
     ContainerDb(db, "PostgreSQL", "psycopg2", "5 tabelas: clubes, utilizador, tipouser, mapas, membro_clube")
 
     Rel(user, nuxt, "HTTPS :3000")
-    Rel(nuxt, api, "fetch HTTP/JSON :8000", "httpOnly cookie (JWT)")
+    Rel(nuxt, api, "fetch HTTP/JSON :8000", "Authorization: Bearer JWT")
     Rel(api, auth_mod, "Depends(get_current_user)")
     Rel(api, db, "SQLAlchemy Session")
     Rel(auth_mod, db, "SQLAlchemy Session")
@@ -152,7 +152,7 @@ sequenceDiagram
     participant DB as PostgreSQL
 
     U->>F: Preenche username, password, tipo_id
-    F->>A: POST /auth/token (FormData, credentials: include)
+    F->>A: POST /auth/token (FormData)
     A->>DB: SELECT utilizador WHERE username = ?
     DB-->>A: row | null
 
@@ -164,15 +164,15 @@ sequenceDiagram
         A-->>F: 401 Unauthorized
     else Credenciais válidas
         A->>A: jwt.encode({sub, id, tipo_id, exp+30min}, SECRET_KEY, HS256)
-        A-->>F: 200 Set-Cookie: access_token=#lt;JWT#gt;#59; HttpOnly#59; Secure#59; SameSite=Lax#59; Path=/#59; Max-Age=1800
+        A-->>F: 200 {access_token, token_type: bearer}
     end
 
-    F->>F: navigateTo("/dashboard")
+    F->>F: Armazena token + navigateTo("/dashboard")
 
-    Note over F,A: Pedidos subsequentes — cookie enviado automaticamente
+    Note over F,A: Pedidos subsequentes — header Authorization enviado pelo frontend
 
-    F->>A: GET /clubes (Cookie: access_token=#lt;JWT#gt;)
-    A->>A: jwt.decode(request.cookies[#quot;access_token#quot;])
+    F->>A: GET /clubes (Authorization: Bearer token)
+    A->>A: jwt.decode(token, SECRET_KEY, [HS256])
     alt Token inválido/expirado
         A-->>F: 401 Unauthorized
     else Token válido
@@ -180,20 +180,6 @@ sequenceDiagram
         DB-->>A: [rows]
         A-->>F: 200 [ClubeResponse]
     end
-```
-
-### Logout (Invalidação do Cookie)
-
-```mermaid
-sequenceDiagram
-    actor U as Utilizador
-    participant F as Nuxt Frontend
-    participant A as FastAPI /auth
-
-    U->>F: Clica "Sair"
-    F->>A: POST /auth/logout (credentials: include)
-    A-->>F: 200 Set-Cookie: access_token=#quot;#quot;#59; HttpOnly#59; Max-Age=0#59; Path=/
-    F->>F: navigateTo("/login")
 ```
 
 ### CRUD — Criar Clube
@@ -260,41 +246,22 @@ sequenceDiagram
 sequenceDiagram
     participant F as Nuxt (dashboard.vue)
     participant API as FastAPI
-    participant Cache as In-Memory Cache
     participant DB as PostgreSQL
 
     F->>API: GET /stats
-    API->>Cache: cache_get("stats")
-    alt Cache HIT
-        Cache-->>API: cached counts
-    else Cache MISS
-        API->>DB: SELECT COUNT(*) FROM clubes, utilizador, tipouser, mapas
-        DB-->>API: {counts}
-        API->>Cache: cache_set("stats", data, TTL=60s)
-    end
+    API->>DB: SELECT COUNT(*) FROM clubes, utilizador, tipouser, mapas
+    DB-->>API: {counts}
     API-->>F: {clubes, utilizadores, tipousers, mapas}
 
     par Parallel requests
-        F->>API: GET /statstpuser (Cookie: JWT)
-        API->>Cache: cache.get("statstpuser")
-        alt Cache HIT
-            Cache-->>API: cached data
-        else Cache MISS
-            API->>DB: GROUP BY tipo_id → COUNT(*)
-            DB-->>API: {tipo: count}
-            API->>Cache: cache.set("statstpuser", data, TTL=60s)
-        end
+        F->>API: GET /statstpuser (Authorization: Bearer token)
+        API->>DB: GROUP BY tipo_id, COUNT(*)
+        DB-->>API: {tipo: count}
         API-->>F: {admin: N, gestor: N, ...}
     and
-        F->>API: GET /registrations (Cookie: JWT)
-        API->>Cache: cache.get("registrations:{year}")
-        alt Cache HIT
-            Cache-->>API: cached data
-        else Cache MISS
-            API->>DB: SELECT EXTRACT(month), COUNT(*) WHERE year = current GROUP BY month
-            DB-->>API: [{month, count}]
-            API->>Cache: cache.set("registrations:{year}", data, TTL=300s)
-        end
+        F->>API: GET /registrations (Authorization: Bearer token)
+        API->>DB: SELECT EXTRACT(month), COUNT(*) WHERE year = current GROUP BY month
+        DB-->>API: [{month, count}]
         API-->>F: [{month: "Janeiro", count: N}, ...]
     end
 
@@ -659,100 +626,70 @@ pytest tests/ --cov=. --cov-report=term-missing
 - (−) Requer `argon2_cffi` como dependência nativa (compilação C)
 - (−) Ligeiramente mais lento que bcrypt por default (por design — é a feature)
 
-### ADR-003: JWT em httpOnly cookie em vez de localStorage
+### ADR-003: JWT via Bearer token (Authorization header)
 
-**Status:** Aceite (supersede versão anterior com localStorage)  
-**Contexto:** A arquitetura é SPA + API separada. O token JWT precisa de ser persistido no cliente entre requests. Existem duas abordagens comuns:
-
-| Abordagem | XSS | CSRF | JS Access |
-|-----------|-----|------|-----------|
-| `localStorage` | Vulnerável — qualquer script acede ao token | Imune — token não é enviado automaticamente | Sim |
-| `httpOnly cookie` | Imune — JS não consegue ler o cookie | Requer mitigação (`SameSite`, CSRF token) | Não |
-
-**Decisão:** JWT transportado em cookie `httpOnly; Secure; SameSite=Lax` com `Max-Age=1800` (30 min). O backend faz `Set-Cookie` no login e lê `request.cookies["access_token"]` nos endpoints protegidos. Logout = `Set-Cookie` com `Max-Age=0`.
+**Status:** Aceite  
+**Contexto:** A arquitetura é SPA + API separada. O token JWT precisa de ser persistido no cliente entre requests. O FastAPI fornece `OAuth2PasswordBearer` como mecanismo nativo para autenticação via header `Authorization: Bearer <token>`, com integração automática no Swagger UI (`/docs`).  
+**Decisão:** JWT transportado no header `Authorization: Bearer <token>`. O login devolve JSON `{access_token, token_type}` e o frontend armazena o token, enviando-o explicitamente em cada request protegido. Sem endpoint de logout — o frontend descarta o token localmente.
 
 **Implementação:**
 
 ```python
 # auth.py — login response
-from fastapi.responses import JSONResponse
-
-@router.post("/token")
-async def login(form_data, db):
+@router.post("/token", response_model=Token)
+async def login(
+    form_data: Annotated[OAuth2PasswordRequestFormWithTipo, Depends()],
+    db: db_dependency,
+):
     user = authenticate_user(db, form_data.username, form_data.password, form_data.tipo_id)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     token = create_access_token(user, timedelta(minutes=30))
-    response = JSONResponse(content={"message": "Login efetuado"})
-    response.set_cookie(
-        key="access_token",
-        value=token,
-        httponly=True,          # inacessível a document.cookie / JS
-        secure=True,            # só enviado sobre HTTPS
-        samesite="lax",         # protege contra CSRF cross-site
-        max_age=1800,           # 30 min — alinhado com exp do JWT
-        path="/",
-    )
-    return response
+    return {"access_token": token, "token_type": "bearer"}
 
-# auth.py — get_current_user lê do cookie
-from fastapi import Request
+# auth.py — get_current_user extrai do header Authorization
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
-async def get_current_user(request: Request):
-    token = request.cookies.get("access_token")
-    if not token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        ...
+        username: str = payload.get("sub")
+        user_id: int = payload.get("id")
+        tipo_id: int = payload.get("tipo_id")
+        if username is None or user_id is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        return {"username": username, "id": user_id, "tipo_id": tipo_id}
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
-
-# auth.py — logout
-@router.post("/logout")
-async def logout():
-    response = JSONResponse(content={"message": "Logout efetuado"})
-    response.delete_cookie(key="access_token", path="/")
-    return response
 ```
 
 ```javascript
-// Frontend — fetch com credentials
+// Frontend — login
 const resp = await fetch(`${API}/auth/token`, {
   method: 'POST',
   body: formData,
-  credentials: 'include'   // envia e recebe cookies cross-origin
+})
+const { access_token } = await resp.json()
+
+// Pedidos protegidos — token enviado no header
+const clubes = await fetch(`${API}/clubes`, {
+  headers: { 'Authorization': `Bearer ${access_token}` }
 })
 
-// Pedidos protegidos — cookie é enviado automaticamente
-const clubes = await fetch(`${API}/clubes`, {
-  credentials: 'include'
-})
+// Logout — descartar token no frontend
+token.value = null
+navigateTo('/login')
 ```
 
 **Consequências:**
-- (+) **XSS-safe** — `httpOnly` impede `document.cookie` e qualquer acesso por JavaScript ao token
-- (+) **Sem gestão manual** — browser envia cookie automaticamente (sem `Authorization` header explícito)
-- (+) Stateless mantido — o servidor continua a não guardar estado de sessão
-- (+) Logout limpo — `delete_cookie` força `Max-Age=0`
-- (+) `SameSite=Lax` bloqueia envio em POST cross-site (mitigação CSRF)
-- (−) Requer `credentials: 'include'` em todos os `fetch` no frontend
-- (−) CORS precisa de `allow_credentials=True` + origin explícita (não pode ser `*`)
-- (−) Token continua não revogável antes do `exp` (sem blacklist)
+- (+) Compatível com `OAuth2PasswordBearer` nativo do FastAPI — integração automática com Swagger UI (`/docs`)
+- (+) Stateless mantido — o servidor não guarda estado de sessão
+- (+) Simples de implementar — sem configuração de cookies cross-origin
+- (+) CORS simplificado — não requer `allow_credentials=True` nem origins explícitas
+- (−) Token acessível via JavaScript — vulnerável a XSS se houver injection
+- (−) Frontend tem de gerir manualmente o armazenamento e envio do token
+- (−) Token não revogável antes do `exp` (sem blacklist)
 - (−) Sem refresh token — re-login após 30 min
-
-**CORS necessário (atualizado):**
-```python
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # origin explícita obrigatória
-    allow_credentials=True,                    # permite Set-Cookie cross-origin
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-```
-
-> **Nota:** `allow_origins=["*"]` + `allow_credentials=True` é inválido por spec CORS. O origin tem de ser explícito.
 
 ### ADR-004: UniqueConstraint na tabela de inscrição (membro_clube)
 
