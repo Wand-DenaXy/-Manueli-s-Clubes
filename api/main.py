@@ -12,6 +12,7 @@ from sqlalchemy import extract,func
 from auth import get_current_user
 from sqlalchemy.orm import joinedload
 from database import get_db, init_db
+from cache import cache_get, cache_set, cache_invalidate
 from models import (
     ClubeModel, ClubeCreate, ClubeResponse,
     UtilizadorModel, UtilizadorCreate, UtilizadorResponse,
@@ -51,34 +52,35 @@ MESES = [
 
 @app.get("/stats")
 def get_stats(db: Session = Depends(get_db)):
-    totalClubes = db.query(ClubeModel).count()
-    totalUtilizadores = db.query(UtilizadorModel).count()
-    totalTiposUser = db.query(TipoUserModel).count()
-    totalMapas = db.query(MapaModel).count()
+    cached = cache_get("stats")
+    if cached is not None:
+        return cached
 
-    
-    return {
-        "clubes": totalClubes,
-        "utilizadores": totalUtilizadores,
-        "tipousers": totalTiposUser,
-        "mapas": totalMapas
+    result = {
+        "clubes": db.query(ClubeModel).count(),
+        "utilizadores": db.query(UtilizadorModel).count(),
+        "tipousers": db.query(TipoUserModel).count(),
+        "mapas": db.query(MapaModel).count(),
     }
+    cache_set("stats", result, ttl=60)
+    return result
 @app.get("/statstpuser")
 def get_stats_tpuser(
     db: Session = Depends(get_db),
     current_user: UtilizadorModel = Depends(get_current_user)
 ):
+    cached = cache_get("statstpuser")
+    if cached is not None:
+        return cached
+
     tipos = db.query(TipoUserModel).all()
-
     resultado = {}
-
     for tipo in tipos:
-        total = db.query(UtilizadorModel).filter(
+        resultado[tipo.descricao] = db.query(UtilizadorModel).filter(
             UtilizadorModel.tipo_id == tipo.id
         ).count()
 
-        resultado[tipo.descricao] = total
-
+    cache_set("statstpuser", resultado, ttl=60)
     return resultado
 
 
@@ -87,9 +89,12 @@ def registrations_by_month(
     db: Session = Depends(get_db),
     user: UtilizadorModel = Depends(get_current_user)
 ):
-
-
     year = datetime.utcnow().year
+    cache_key = f"registrations:{year}"
+
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached
 
     result = (
         db.query(
@@ -107,6 +112,7 @@ def registrations_by_month(
         counts[int(row.month)] = row.count
 
     data = [{"month": MESES[m - 1], "count": counts[m]} for m in range(1, 13)]
+    cache_set(cache_key, data, ttl=300)
     return data
 
 @app.post("/clubes", response_model=ClubeResponse)
@@ -119,6 +125,7 @@ def create_clube(
     db.add(db_clube)
     db.commit()
     db.refresh(db_clube)
+    cache_invalidate("stats", "clubes:")
     return db_clube
 
 @app.get("/clubes", response_model=list[ClubeResponse])
@@ -126,7 +133,12 @@ def list_clubes(
     db: Session = Depends(get_db),
     user: UtilizadorModel = Depends(get_current_user)
 ):
-    return db.query(ClubeModel).all()
+    cached = cache_get("clubes:list")
+    if cached is not None:
+        return cached
+    result = db.query(ClubeModel).all()
+    cache_set("clubes:list", result, ttl=30)
+    return result
 
 @app.put("/clubes/{clube_id}", response_model=ClubeResponse)
 def update_clube(
@@ -142,6 +154,7 @@ def update_clube(
         setattr(db_clube, key, value)
     db.commit()
     db.refresh(db_clube)
+    cache_invalidate("stats", "clubes:")
     return db_clube
 
 @app.delete("/clubes/{clube_id}", status_code=204)
@@ -155,6 +168,7 @@ def delete_clube(
         raise HTTPException(status_code=404, detail="Clube não encontrado")
     db.delete(db_clube)
     db.commit()
+    cache_invalidate("stats", "clubes:")
     return None
 
 @app.get("/utilizadores", response_model=list[UtilizadorResponse])
@@ -176,6 +190,7 @@ def delete_utilizador(
         raise HTTPException(status_code=404, detail="Utilizador não encontrado")
     db.delete(db_utilizador)
     db.commit()
+    cache_invalidate("stats", "statstpuser", "registrations:")
     return Response(status_code=204)
 
 @app.put("/utilizadores/{utilizador_id}", response_model=UtilizadorResponse)
@@ -193,7 +208,7 @@ def update_utilizador(
         setattr(db_utilizador, key, value)
     db.commit()
     db.refresh(db_utilizador)
-    
+    cache_invalidate("stats", "statstpuser")
     return UtilizadorResponse.from_orm(db_utilizador)
 
 
@@ -207,13 +222,19 @@ def create_tipo_user(
     db.add(novo_tipo)
     db.commit()
     db.refresh(novo_tipo)
+    cache_invalidate("stats", "statstpuser", "tipouser:")
     return novo_tipo
 
 @app.get("/tipouser", response_model=list[TipoUserResponse])
 def list_tipo_user(
     db: Session = Depends(get_db),
 ):
-    return db.query(TipoUserModel).all()
+    cached = cache_get("tipouser:list")
+    if cached is not None:
+        return cached
+    result = db.query(TipoUserModel).all()
+    cache_set("tipouser:list", result, ttl=120)
+    return result
 
 @app.put("/tipouser/{tipo_id}", response_model=TipoUserResponse)
 def update_tipo_user(
@@ -229,6 +250,7 @@ def update_tipo_user(
     db_tipo.descricao = tipo.descricao
     db.commit()
     db.refresh(db_tipo)
+    cache_invalidate("stats", "statstpuser", "tipouser:")
     return db_tipo
 
 @app.delete("/tipouser/{tipo_id}", status_code=204)
@@ -243,6 +265,7 @@ def delete_tipo_user(
 
     db.delete(db_tipo)
     db.commit()
+    cache_invalidate("stats", "statstpuser", "tipouser:")
     return None
 
 @app.post("/mapas", response_model=MapaResponse)
@@ -259,6 +282,7 @@ def create_mapa(
     db.add(db_mapa)
     db.commit()
     db.refresh(db_mapa)
+    cache_invalidate("stats", "mapas:")
     return db_mapa
 
 @app.get("/mapas", response_model=list[MapaResponse])
@@ -266,7 +290,12 @@ def list_mapas(
     db: Session = Depends(get_db),
     user: UtilizadorModel = Depends(get_current_user)
 ):
-    return db.query(MapaModel).all()
+    cached = cache_get("mapas:list")
+    if cached is not None:
+        return cached
+    result = db.query(MapaModel).all()
+    cache_set("mapas:list", result, ttl=60)
+    return result
 
 @app.put("/mapas/{mapa_id}", response_model=MapaResponse)
 def update_mapa(
@@ -288,6 +317,7 @@ def update_mapa(
     
     db.commit()
     db.refresh(db_mapa)
+    cache_invalidate("stats", "mapas:")
     return db_mapa
 
 @app.delete("/mapas/{mapa_id}", status_code=200)
@@ -303,7 +333,7 @@ def delete_mapa(
 
     db.delete(mapa)
     db.commit()
-
+    cache_invalidate("stats", "mapas:")
     return {"message": "Mapa apagado com sucesso"}
 
 @app.post("/clubes/{clube_id}/ingressar", response_model=IngressarResponse, status_code=201)
