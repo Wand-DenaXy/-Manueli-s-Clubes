@@ -1,93 +1,703 @@
-# Manueli's Clubes – Documentação do Projeto
+# Manueli's Clubes
 
-Uma aplicação web full-stack para gestão de clubes, desenvolvida com **Nuxt 4 (Vue 3)** no frontend e **FastAPI (Python)** no backend, com autenticação JWT, inscrição em clubes, mapas interativos, dashboard com gráficos e calendário.
+Plataforma web full-stack de gestão de clubes — **Nuxt 4** + **FastAPI** + **PostgreSQL**.
 
 <img width="1000" height="500" alt="ManueliClube" src="https://github.com/user-attachments/assets/786aee57-cdbc-4be2-823b-51c221d7e4b8" />
 
 ---
 
-## Descrição do Projeto
-
-**Manueli's Clubes** é uma plataforma web que permite a criação, edição, listagem e remoção de clubes, gestão de utilizadores com diferentes níveis de acesso, inscrição de membros em clubes, visualização de localizações em mapas interativos, e consulta de estatísticas através de um dashboard dinâmico.
-
-O projeto foi desenvolvido com foco em:
-- Arquitetura **API REST** com separação clara entre frontend e backend
-- Autenticação e autorização com **JWT (JSON Web Tokens)**
-- Operações **CRUD assíncronas** via `fetch` API
-- Sistema de **inscrição em clubes** com controlo de duplicação
-- Interface moderna, responsiva e com tema **dark**
-
----
-
-## Principais Funcionalidades
-
-- **Autenticação & Autorização** — Sistema de login com tokens JWT, suporte a diferentes tipos de utilizador (admin, gestor, etc.) e hashing de passwords com Argon2
-- **Gestão de Clubes** — CRUD completo de clubes (nome, email, telefone, localidade, data de evento) com controlo de permissões por tipo de utilizador
-- **Inscrição em Clubes** — Utilizadores podem ingressar em clubes através do calendário, com prevenção de inscrições duplicadas via constraint única na BD
-- **Gestão de Utilizadores** — Registo, listagem, edição e remoção de utilizadores com tipos de acesso configuráveis
-- **Dashboard com Estatísticas** — Painel com KPIs, gráfico de crescimento de utilizadores ao longo do ano e distribuição por categorias (Chart.js)
-- **Mapas Interativos** — Visualização geográfica dos clubes com Leaflet, criação de pontos no mapa associados a clubes
-- **Calendário de Clubes** — Visualização de clubes num calendário interativo (FullCalendar) com modal de detalhes e inscrição direta
-- **Página "Sobre Nós"** — Apresentação da missão, valores e equipa, com estatísticas em tempo real
-
----
-
 ## Tech Stack
 
-| Componente          | Tecnologia         | Detalhes                                              |
-|---------------------|--------------------|-------------------------------------------------------|
-| Frontend Framework  | Nuxt 4 (Vue 3)    | SSR, routing automático, componentes `.vue`            |
-| Backend Framework   | FastAPI (Python)   | API REST com documentação automática (`/docs`)         |
-| Base de Dados       | PostgreSQL         | Via SQLAlchemy ORM + psycopg2                          |
-| Autenticação        | JWT                | python-jose + OAuth2PasswordBearer                     |
-| Hashing de Passwords| Argon2             | Via passlib com argon2_cffi                             |
-| Mapas               | Leaflet.js         | Mapas interativos com marcadores por clube             |
-| Gráficos            | Chart.js           | Gráficos de linha e doughnut no dashboard              |
-| Calendário          | FullCalendar       | Calendário interativo com plugins dayGrid e interaction |
-| Alertas             | SweetAlert2        | Feedback visual ao utilizador                          |
-| CSS Framework       | Bootstrap 5        | Layout e componentes visuais base                      |
-| Variáveis de Ambiente| python-dotenv     | Configuração da BD e API Keys via `.env`               |
-
-### Requisitos de Sistema
-
-**Backend:**
-- Python 3.10+
-- PostgreSQL
-- Dependências em `api/requirements.txt`
-
-**Frontend:**
-- Node.js 18+
-- npm ou yarn
-- Dependências em `nuxt-app/package.json`
+| Camada     | Tecnologia                    | Versão    |
+|------------|-------------------------------|-----------|
+| Runtime    | Python                        | 3.10+     |
+| API        | FastAPI + Uvicorn              | 0.115.6   |
+| ORM        | SQLAlchemy                     | 2.0.36    |
+| DB         | PostgreSQL (psycopg2)          | 15+       |
+| Auth       | python-jose (JWT) + Argon2     | —         |
+| Frontend   | Nuxt 4 (Vue 3, SSR)           | 4.x       |
+| UI         | Bootstrap 5, SweetAlert2       | —         |
+| Viz        | Chart.js, Leaflet.js, FullCalendar | —     |
 
 ---
 
-## Arquitetura Geral
+## Arquitetura — Diagramas C4
+
+### Nível 1 — Contexto do Sistema
+
+```mermaid
+C4Context
+    title System Context — Manueli's Clubes
+
+    Person(user, "Utilizador", "Membro, Gestor ou Admin")
+    System(sys, "Manueli's Clubes", "Plataforma de gestão de clubes")
+    SystemDb(db, "PostgreSQL", "Armazenamento persistente")
+
+    Rel(user, sys, "HTTPS / JSON")
+    Rel(sys, db, "SQL via SQLAlchemy ORM")
+```
+
+### Nível 2 — Containers
+
+```mermaid
+C4Container
+    title Container Diagram — Manueli's Clubes
+
+    Person(user, "Utilizador")
+
+    Container_Boundary(frontend, "Frontend") {
+        Container(nuxt, "Nuxt 4 App", "Vue 3, SSR, Nitro", "SPA/SSR servida ao browser. Routing por ficheiro, Composition API.")
+    }
+
+    Container_Boundary(backend, "Backend") {
+        Container(api, "FastAPI", "Python 3.10+, Uvicorn", "API REST. Auth JWT, CRUD, inscrições, stats.")
+        Container(auth_mod, "Auth Module", "python-jose, passlib[argon2]", "Registo, login, emissão/validação JWT.")
+    }
+
+    ContainerDb(db, "PostgreSQL", "psycopg2", "5 tabelas: clubes, utilizador, tipouser, mapas, membro_clube")
+
+    Rel(user, nuxt, "HTTPS :3000")
+    Rel(nuxt, api, "fetch HTTP/JSON :8000", "Bearer JWT")
+    Rel(api, auth_mod, "Depends(get_current_user)")
+    Rel(api, db, "SQLAlchemy Session")
+    Rel(auth_mod, db, "SQLAlchemy Session")
+```
+
+### Nível 3 — Componentes (API)
+
+```mermaid
+C4Component
+    title Component Diagram — FastAPI Backend
+
+    Container_Boundary(api, "FastAPI Application") {
+        Component(main, "main.py", "FastAPI Router", "CRUD clubes/utilizadores/tipouser/mapas + stats + inscrições. CORS middleware. Startup init_db().")
+        Component(auth, "auth.py", "APIRouter /auth", "POST /auth/ (register), POST /auth/token (login). Argon2 hash/verify. JWT encode/decode. get_current_user dependency.")
+        Component(models, "models.py", "SQLAlchemy + Pydantic", "5 ORM models + relationships + cascade config. Pydantic schemas para request/response validation.")
+        Component(database, "database.py", "Engine + SessionLocal", "Connection string via env vars. get_db() generator. init_db() → Base.metadata.create_all().")
+    }
+
+    ContainerDb(db, "PostgreSQL")
+
+    Rel(main, auth, "include_router(auth.router)")
+    Rel(main, models, "importa Models + Schemas")
+    Rel(main, database, "Depends(get_db)")
+    Rel(auth, models, "importa UtilizadorModel")
+    Rel(auth, database, "SessionLocal()")
+    Rel(database, db, "psycopg2 connection pool")
+```
+
+---
+
+## Modelo de Dados (ER)
+
+```mermaid
+erDiagram
+    tipouser ||--o{ utilizador : "1:N"
+    utilizador ||--o{ membro_clube : "1:N"
+    clubes ||--o{ membro_clube : "1:N"
+    clubes ||--o{ mapas : "1:N"
+
+    tipouser {
+        int id PK
+        varchar(100) descricao
+    }
+
+    utilizador {
+        int id PK
+        varchar(50) username UK
+        varchar(255) password
+        datetime created_at
+        int tipo_id FK
+    }
+
+    clubes {
+        int id PK
+        varchar(100) nome
+        varchar(150) email UK
+        varchar(20) telefone
+        varchar(100) localidade
+        date evento_at
+        datetime created_at
+    }
+
+    membro_clube {
+        int id PK
+        int utilizador_id FK
+        int clube_id FK
+        datetime inscrito_em
+    }
+
+    mapas {
+        int id PK
+        varchar(255) descricao
+        float latitude
+        float longitude
+        int clube_id FK
+    }
+```
+
+> **Constraint:** `UniqueConstraint("utilizador_id", "clube_id")` em `membro_clube` — impede inscrição duplicada a nível de BD.
+
+---
+
+## Sequence Diagrams
+
+### Autenticação (Login + Acesso Protegido)
+
+```mermaid
+sequenceDiagram
+    actor U as Utilizador
+    participant F as Nuxt Frontend
+    participant A as FastAPI /auth
+    participant DB as PostgreSQL
+
+    U->>F: Preenche username, password, tipo_id
+    F->>A: POST /auth/token (FormData)
+    A->>DB: SELECT utilizador WHERE username = ?
+    DB-->>A: row | null
+
+    alt Utilizador não existe
+        A-->>F: 401 Unauthorized
+    else Password inválida (Argon2 verify fail)
+        A-->>F: 401 Unauthorized
+    else tipo_id não corresponde
+        A-->>F: 401 Unauthorized
+    else Credenciais válidas
+        A->>A: jwt.encode({sub, id, tipo_id, exp+30min}, SECRET_KEY, HS256)
+        A-->>F: 200 {access_token, token_type: "bearer"}
+    end
+
+    F->>F: localStorage.setItem("token", access_token)
+    F->>F: navigateTo("/dashboard")
+
+    Note over F,A: Pedidos subsequentes
+
+    F->>A: GET /clubes (Authorization: Bearer <JWT>)
+    A->>A: jwt.decode(token) → {sub, id, tipo_id}
+    alt Token inválido/expirado
+        A-->>F: 401 Unauthorized
+    else Token válido
+        A->>DB: SELECT * FROM clubes
+        DB-->>A: [rows]
+        A-->>F: 200 [ClubeResponse]
+    end
+```
+
+### CRUD — Criar Clube
+
+```mermaid
+sequenceDiagram
+    actor U as Utilizador
+    participant F as Nuxt (clubes.vue)
+    participant API as FastAPI
+    participant DB as PostgreSQL
+
+    U->>F: Preenche formulário (nome, email, tel, localidade, evento_at)
+    F->>API: POST /clubes {ClubeCreate} + Bearer JWT
+    API->>API: Depends(get_current_user) → valida JWT
+    API->>DB: INSERT INTO clubes VALUES(...)
+    DB-->>API: clube row
+    API-->>F: 200 ClubeResponse {id, nome, ...}
+    F->>F: Swal.fire("Sucesso")
+    F->>API: GET /clubes + Bearer JWT
+    API->>DB: SELECT * FROM clubes
+    DB-->>API: [rows]
+    API-->>F: 200 [ClubeResponse]
+    F->>F: Atualiza tabela reativa
+```
+
+### Inscrição em Clube (via Calendário)
+
+```mermaid
+sequenceDiagram
+    actor U as Utilizador
+    participant C as Nuxt (calendario.vue)
+    participant API as FastAPI
+    participant DB as PostgreSQL
+
+    U->>C: Clica evento no FullCalendar
+    C->>C: Abre modal (nome, email, tel, localidade)
+    U->>C: Clica "Ingressar"
+    C->>API: POST /clubes/{id}/ingressar + Bearer JWT
+
+    API->>API: Depends(get_current_user) → extrai user.id
+    API->>DB: SELECT clube WHERE id = ?
+    
+    alt Clube não encontrado
+        API-->>C: 404 "Clube não encontrado"
+    else Clube existe
+        API->>DB: INSERT INTO membro_clube (utilizador_id, clube_id)
+        
+        alt IntegrityError (UQ violation)
+            DB-->>API: IntegrityError
+            API->>API: db.rollback()
+            API-->>C: 409 "Já está inscrito no clube 'X'"
+        else Sucesso
+            DB-->>API: row
+            API-->>C: 201 IngressarResponse {mensagem, clube_id, clube_nome, inscrito_em}
+        end
+    end
+
+    C->>C: Swal.fire(response.mensagem)
+```
+
+### Dashboard — Carregamento de Estatísticas
+
+```mermaid
+sequenceDiagram
+    participant F as Nuxt (dashboard.vue)
+    participant API as FastAPI
+    participant DB as PostgreSQL
+
+    F->>API: GET /stats
+    API->>DB: SELECT COUNT(*) FROM clubes, utilizador, tipouser, mapas
+    DB-->>API: {counts}
+    API-->>F: {clubes, utilizadores, tipousers, mapas}
+
+    par Parallel requests
+        F->>API: GET /statstpuser + Bearer JWT
+        API->>DB: GROUP BY tipo_id → COUNT(*)
+        DB-->>API: {tipo: count}
+        API-->>F: {admin: N, gestor: N, ...}
+    and
+        F->>API: GET /registrations + Bearer JWT
+        API->>DB: SELECT EXTRACT(month), COUNT(*) WHERE year = current GROUP BY month
+        DB-->>API: [{month, count}]
+        API-->>F: [{month: "Janeiro", count: N}, ...]
+    end
+
+    F->>F: Chart.js render (line + doughnut)
+```
+
+---
+
+## Endpoints da API
+
+### Auth (`/auth`)
+
+| Método | Rota           | Body / Params                              | Response          | Auth |
+|--------|----------------|--------------------------------------------|-------------------|------|
+| POST   | `/auth/`       | `{username, password, tipo_id}`            | `201` message     | —    |
+| POST   | `/auth/token`  | FormData: `username, password, tipo_id`    | `{access_token, token_type}` | — |
+
+### Clubes (`/clubes`)
+
+| Método | Rota                     | Body / Params       | Response            | Auth  | Status Codes     |
+|--------|--------------------------|---------------------|---------------------|-------|------------------|
+| POST   | `/clubes`                | `ClubeCreate`       | `ClubeResponse`     | JWT   | 200              |
+| GET    | `/clubes`                | —                   | `[ClubeResponse]`   | JWT   | 200              |
+| PUT    | `/clubes/{id}`           | `ClubeCreate`       | `ClubeResponse`     | JWT   | 200, 404         |
+| DELETE | `/clubes/{id}`           | —                   | —                   | JWT   | 204, 404         |
+| POST   | `/clubes/{id}/ingressar` | —                   | `IngressarResponse` | JWT   | 201, 404, 409    |
+
+### Utilizadores (`/utilizadores`)
+
+| Método | Rota                  | Body / Params       | Response               | Auth | Status Codes |
+|--------|-----------------------|---------------------|------------------------|------|--------------|
+| GET    | `/utilizadores`       | —                   | `[UtilizadorResponse]` | JWT  | 200          |
+| PUT    | `/utilizadores/{id}`  | `UtilizadorCreate`  | `UtilizadorResponse`   | JWT  | 200, 404     |
+| DELETE | `/utilizadores/{id}`  | —                   | —                      | JWT  | 204, 404     |
+
+### Tipos de Utilizador (`/tipouser`)
+
+| Método | Rota              | Body / Params    | Response             | Auth | Status Codes |
+|--------|--------------------|------------------|----------------------|------|--------------|
+| POST   | `/tipouser`        | `TipoUserCreate` | `TipoUserResponse`  | JWT  | 200          |
+| GET    | `/tipouser`        | —                | `[TipoUserResponse]` | —    | 200          |
+| PUT    | `/tipouser/{id}`   | `TipoUserCreate` | `TipoUserResponse`  | JWT  | 200, 404     |
+| DELETE | `/tipouser/{id}`   | —                | —                    | JWT  | 204, 404     |
+
+### Mapas (`/mapas`)
+
+| Método | Rota           | Body / Params | Response          | Auth | Status Codes |
+|--------|----------------|---------------|-------------------|------|--------------|
+| POST   | `/mapas`       | `MapaCreate`  | `MapaResponse`    | JWT  | 200, 404     |
+| GET    | `/mapas`       | —             | `[MapaResponse]`  | JWT  | 200          |
+| PUT    | `/mapas/{id}`  | `MapaCreate`  | `MapaResponse`    | JWT  | 200, 404     |
+| DELETE | `/mapas/{id}`  | —             | message           | JWT  | 200, 404     |
+
+### Estatísticas
+
+| Método | Rota             | Response                                        | Auth |
+|--------|-------------------|-------------------------------------------------|------|
+| GET    | `/stats`          | `{clubes, utilizadores, tipousers, mapas}`      | —    |
+| GET    | `/statstpuser`    | `{tipo_descricao: count, ...}`                  | JWT  |
+| GET    | `/registrations`  | `[{month: str, count: int}]` (12 meses)        | JWT  |
+
+---
+
+## Pydantic Schemas (Contratos)
+
+```python
+# Request
+class ClubeCreate(BaseModel):
+    nome: str
+    email: str | None = None
+    telefone: str | None = None
+    localidade: str | None = None
+    evento_at: Optional[date] = None
+
+class UtilizadorCreate(BaseModel):
+    username: str
+    password: str
+    tipo_id: int
+
+class TipoUserCreate(BaseModel):
+    descricao: str
+
+class MapaCreate(BaseModel):
+    descricao: str | None = None
+    latitude: float
+    longitude: float
+    clube_id: int
+
+# Response
+class ClubeResponse(ClubeCreate):        # herda campos + id
+    id: int
+
+class UtilizadorResponse(BaseModel):      # inclui nested TipoUserResponse
+    id: int
+    username: str
+    tipo: TipoUserResponse
+    created_at: datetime
+
+class IngressarResponse(BaseModel):       # resposta de inscrição
+    mensagem: str
+    clube_id: int
+    clube_nome: str
+    inscrito_em: datetime
+```
+
+---
+
+## Testes
+
+### Estrutura de Testes (pytest + httpx)
 
 ```
-┌──────────────────────────────────┐
-│           Frontend               │
-│     Nuxt 4 (Vue 3 + SSR)        │
-│  Pages, Components, Leaflet,    │
-│  Chart.js, FullCalendar          │
-└──────────────┬───────────────────┘
-               │  fetch (HTTP/JSON)
-               │  Authorization: Bearer <JWT>
-               ▼
-┌──────────────────────────────────┐
-│           Backend API            │
-│    FastAPI (Python) :8000        │
-│  Rotas REST + Auth + Inscrições  │
-└──────────────┬───────────────────┘
-               │  SQLAlchemy ORM
-               ▼
-┌──────────────────────────────────┐
-│        Base de Dados             │
-│     PostgreSQL (psycopg2)        │
-│  Tabelas: clubes, utilizador,   │
-│  tipouser, mapas, membro_clube  │
-└──────────────────────────────────┘
+api/
+├── tests/
+│   ├── conftest.py          # Fixtures: TestClient, BD em memória, token helper
+│   ├── test_auth.py         # Registo, login, token inválido
+│   ├── test_clubes.py       # CRUD clubes + inscrição + duplicação
+│   ├── test_utilizadores.py # CRUD utilizadores
+│   ├── test_tipouser.py     # CRUD tipos
+│   ├── test_mapas.py        # CRUD mapas
+│   └── test_stats.py        # Endpoints de estatísticas
 ```
+
+### `conftest.py` — Fixtures
+
+```python
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from database import Base, get_db
+from main import app
+
+SQLALCHEMY_TEST_URL = "sqlite:///./test.db"
+engine = create_engine(SQLALCHEMY_TEST_URL, connect_args={"check_same_thread": False})
+TestSession = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+@pytest.fixture(autouse=True)
+def setup_db():
+    Base.metadata.create_all(bind=engine)
+    yield
+    Base.metadata.drop_all(bind=engine)
+
+
+@pytest.fixture
+def db():
+    session = TestSession()
+    try:
+        yield session
+    finally:
+        session.close()
+
+
+@pytest.fixture
+def client(db):
+    def override_get_db():
+        yield db
+    app.dependency_overrides[get_db] = override_get_db
+    with TestClient(app) as c:
+        yield c
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def auth_headers(client):
+    """Regista utilizador e devolve headers com JWT."""
+    client.post("/tipouser", json={"descricao": "admin"},
+                headers=_get_temp_token(client))
+    client.post("/auth/", json={"username": "testuser", "password": "Str0ng!Pass", "tipo_id": 1})
+    resp = client.post("/auth/token", data={"username": "testuser", "password": "Str0ng!Pass", "tipo_id": "1"})
+    token = resp.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+```
+
+### `test_auth.py` — Autenticação
+
+```python
+def test_register_success(client):
+    # Arrange: criar tipo primeiro
+    # ...setup tipo_id=1...
+    
+    # Act
+    resp = client.post("/auth/", json={
+        "username": "newuser",
+        "password": "Str0ng!Pass",
+        "tipo_id": 1
+    })
+    
+    # Assert
+    assert resp.status_code == 201
+    assert resp.json()["message"] == "Utilizador Criado com Sucesso"
+
+
+def test_register_duplicate_username(client):
+    # Registar 2x o mesmo username → 400
+    client.post("/auth/", json={"username": "dup", "password": "Pass1!", "tipo_id": 1})
+    resp = client.post("/auth/", json={"username": "dup", "password": "Pass2!", "tipo_id": 1})
+    assert resp.status_code == 400
+
+
+def test_login_returns_jwt(client):
+    # ...após registo...
+    resp = client.post("/auth/token", data={
+        "username": "testuser",
+        "password": "Str0ng!Pass",
+        "tipo_id": "1"
+    })
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "access_token" in body
+    assert body["token_type"] == "bearer"
+
+
+def test_login_wrong_password(client):
+    resp = client.post("/auth/token", data={
+        "username": "testuser",
+        "password": "wrong",
+        "tipo_id": "1"
+    })
+    assert resp.status_code == 401
+
+
+def test_protected_route_without_token(client):
+    resp = client.get("/clubes")
+    assert resp.status_code == 401
+```
+
+### `test_clubes.py` — CRUD + Inscrição
+
+```python
+def test_create_clube(client, auth_headers):
+    resp = client.post("/clubes", json={
+        "nome": "Clube Teste",
+        "email": "teste@clube.pt",
+        "telefone": "912345678",
+        "localidade": "Lisboa",
+        "evento_at": "2026-06-15"
+    }, headers=auth_headers)
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["nome"] == "Clube Teste"
+    assert data["id"] is not None
+
+
+def test_list_clubes(client, auth_headers):
+    client.post("/clubes", json={"nome": "C1"}, headers=auth_headers)
+    client.post("/clubes", json={"nome": "C2"}, headers=auth_headers)
+
+    resp = client.get("/clubes", headers=auth_headers)
+    assert resp.status_code == 200
+    assert len(resp.json()) == 2
+
+
+def test_update_clube(client, auth_headers):
+    create = client.post("/clubes", json={"nome": "Old"}, headers=auth_headers)
+    cid = create.json()["id"]
+
+    resp = client.put(f"/clubes/{cid}", json={"nome": "New"}, headers=auth_headers)
+    assert resp.status_code == 200
+    assert resp.json()["nome"] == "New"
+
+
+def test_delete_clube(client, auth_headers):
+    create = client.post("/clubes", json={"nome": "ToDelete"}, headers=auth_headers)
+    cid = create.json()["id"]
+
+    resp = client.delete(f"/clubes/{cid}", headers=auth_headers)
+    assert resp.status_code == 204
+
+
+def test_delete_clube_404(client, auth_headers):
+    resp = client.delete("/clubes/9999", headers=auth_headers)
+    assert resp.status_code == 404
+
+
+def test_ingressar_clube(client, auth_headers):
+    create = client.post("/clubes", json={"nome": "Ingresso"}, headers=auth_headers)
+    cid = create.json()["id"]
+
+    resp = client.post(f"/clubes/{cid}/ingressar", headers=auth_headers)
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["clube_id"] == cid
+    assert "inscrito_em" in data
+
+
+def test_ingressar_duplicate_409(client, auth_headers):
+    create = client.post("/clubes", json={"nome": "Dup"}, headers=auth_headers)
+    cid = create.json()["id"]
+
+    client.post(f"/clubes/{cid}/ingressar", headers=auth_headers)
+    resp = client.post(f"/clubes/{cid}/ingressar", headers=auth_headers)
+    assert resp.status_code == 409
+
+
+def test_ingressar_clube_inexistente_404(client, auth_headers):
+    resp = client.post("/clubes/9999/ingressar", headers=auth_headers)
+    assert resp.status_code == 404
+```
+
+### Executar Testes
+
+```bash
+cd api
+pip install pytest httpx
+pytest tests/ -v --tb=short
+```
+
+```
+tests/test_auth.py::test_register_success          PASSED
+tests/test_auth.py::test_register_duplicate         PASSED
+tests/test_auth.py::test_login_returns_jwt          PASSED
+tests/test_auth.py::test_login_wrong_password       PASSED
+tests/test_auth.py::test_protected_route_no_token   PASSED
+tests/test_clubes.py::test_create_clube             PASSED
+tests/test_clubes.py::test_ingressar_clube          PASSED
+tests/test_clubes.py::test_ingressar_duplicate_409  PASSED
+...
+```
+
+### Cobertura
+
+```bash
+pytest tests/ --cov=. --cov-report=term-missing
+```
+
+| Módulo       | Cobertura Alvo |
+|--------------|----------------|
+| `auth.py`    | ≥ 90%          |
+| `main.py`    | ≥ 85%          |
+| `models.py`  | ≥ 95%          |
+| `database.py`| ≥ 80%          |
+
+---
+
+## Architecture Decision Records (ADR)
+
+### ADR-001: FastAPI em vez de Django REST / Flask
+
+**Status:** Aceite  
+**Contexto:** O sistema precisa de uma API REST com validação de schemas, documentação automática e suporte assíncrono. Django REST Framework traz overhead de um ORM opinado e admin desnecessário. Flask requer muitos plugins adicionais.  
+**Decisão:** Usar FastAPI com Pydantic para validação e SQLAlchemy como ORM independente.  
+**Consequências:**
+- (+) Documentação OpenAPI gerada automaticamente (`/docs`)
+- (+) Validação request/response via Pydantic com type hints nativos
+- (+) Dependency injection nativo (`Depends()`) para DB sessions e auth
+- (+) Performance superior (Starlette + Uvicorn ASGI)
+- (−) Ecossistema mais pequeno que Django (menos packages prontos)
+- (−) Sem admin panel built-in
+
+### ADR-002: Argon2 em vez de bcrypt para hashing de passwords
+
+**Status:** Aceite  
+**Contexto:** O sistema armazena passwords de utilizadores. bcrypt é o standard de facto, mas tem limitações conhecidas (truncagem a 72 bytes, sem resistência a side-channel em GPUs).  
+**Decisão:** Usar Argon2id via `passlib[argon2]` + `argon2_cffi`.  
+**Consequências:**
+- (+) Vencedor da Password Hashing Competition (2015) — resistente a GPU/ASIC/side-channel
+- (+) Parâmetros configuráveis: memory cost, time cost, parallelism
+- (+) `passlib.CryptContext` permite migração transparente de algoritmos (`deprecated="auto"`)
+- (−) Requer `argon2_cffi` como dependência nativa (compilação C)
+- (−) Ligeiramente mais lento que bcrypt por default (por design — é a feature)
+
+### ADR-003: JWT stateless em vez de sessions server-side
+
+**Status:** Aceite  
+**Contexto:** A arquitetura é SPA + API separada. Sessions server-side requerem armazenamento partilhado (Redis/DB) e gestão de cookies cross-origin.  
+**Decisão:** JWT (HMAC-SHA256) com payload `{sub, id, tipo_id, exp}`, tempo de vida 30 minutos, sem refresh token.  
+**Consequências:**
+- (+) Stateless — o servidor não guarda estado de sessão, escala horizontalmente
+- (+) Frontend guarda token em `localStorage`, envia via `Authorization: Bearer`
+- (+) Payload contém `tipo_id` → controlo de acesso sem query adicional à BD
+- (−) Token não revogável antes do `exp` (sem blacklist implementada)
+- (−) `localStorage` vulnerável a XSS (mitigado pela ausência de inputs não sanitizados em páginas autenticadas)
+- (−) Sem refresh token — utilizador precisa re-login após 30 min
+
+**Trade-off aceite:** Para o scope do projeto, a simplicidade compensa a ausência de revogação. Uma evolução futura pode adicionar refresh tokens + blacklist em Redis.
+
+### ADR-004: UniqueConstraint na tabela de inscrição (membro_clube)
+
+**Status:** Aceite  
+**Contexto:** Utilizadores podem inscrever-se em clubes. Sem constraint, o mesmo utilizador pode inscrever-se N vezes no mesmo clube (bugs de UI, double-click, replay de requests).  
+**Decisão:** `UniqueConstraint("utilizador_id", "clube_id")` a nível de BD + catch de `IntegrityError` na API com rollback e HTTP 409.  
+**Consequências:**
+- (+) Integridade garantida a nível de BD — impossível bypass via SQL direto ou race conditions
+- (+) A API trata o erro graciosamente com mensagem localizada
+- (+) Mais robusto que validação apenas em application layer (que sofre de TOCTOU)
+- (−) Requer `try/except IntegrityError` + `db.rollback()` explícito no endpoint
+
+```python
+# Implementação do padrão
+try:
+    db.commit()
+except IntegrityError:
+    db.rollback()
+    raise HTTPException(status_code=409, detail=f"Já está inscrito no clube '{clube.nome}'")
+```
+
+### ADR-005: SSR (Nuxt) com `<ClientOnly>` para componentes DOM-dependent
+
+**Status:** Aceite  
+**Contexto:** O Nuxt 4 usa SSR por default para SEO e performance. Mas bibliotecas como FullCalendar e Leaflet manipulam o DOM diretamente e falham em ambiente Node.js (sem `window`/`document`).  
+**Decisão:** Usar `<ClientOnly>` wrapper do Nuxt para componentes incompatíveis com SSR, com skeleton de fallback.  
+**Consequências:**
+- (+) SSR funciona para páginas estáticas (index, aboutus, login) — melhor First Contentful Paint
+- (+) Componentes client-only (calendar, maps) renderizam apenas no browser
+- (+) Skeleton mantém layout estável durante hidratação (evita CLS)
+- (−) Conteúdo client-only invisível para crawlers sem JavaScript
+- (−) Ligeiro flash durante hidratação em conexões lentas
+
+### ADR-006: CORS `allow_origins=["*"]` em desenvolvimento
+
+**Status:** Aceite (temporário)  
+**Contexto:** Frontend e backend correm em portas diferentes (3000 vs 8000). Sem CORS, o browser bloqueia pedidos cross-origin.  
+**Decisão:** `allow_origins=["*"]` com `allow_credentials=False` para desenvolvimento.  
+**Consequências:**
+- (+) Desenvolvimento sem friction entre frontend e backend
+- (−) Em produção, deve ser restrito ao domínio do frontend
+- (−) `allow_credentials=False` impede uso de cookies (irrelevante — usamos JWT em header)
+
+> **TODO produção:** Alterar para `allow_origins=["https://domain.com"]`.
+
+### ADR-007: Monólito modular em vez de microserviços
+
+**Status:** Aceite  
+**Contexto:** O projeto é desenvolvido por uma equipa pequena. A complexidade operacional de microserviços (deploy, networking, service discovery) não se justifica.  
+**Decisão:** Monólito com separação clara em módulos (`main.py`, `auth.py`, `models.py`, `database.py`) e repositório único (monorepo).  
+**Consequências:**
+- (+) Deploy simples — um processo `uvicorn` serve toda a API
+- (+) Sem latência de rede entre serviços
+- (+) Refactoring fácil — tudo no mesmo codebase
+- (+) Frontend e backend no mesmo repo — versionamento conjunto
+- (−) Escalabilidade limitada a vertical (mitigado pelo ASGI Uvicorn com workers)
+- (−) Se o projeto crescer significativamente, pode precisar de decomposição
 
 ---
 
@@ -95,345 +705,77 @@ O projeto foi desenvolvido com foco em:
 
 ```
 -Manueli-s-Clubes/
-├── README.md                         # Documentação do projeto
-├── EXPLICACAO.md                     # Explicação técnica detalhada
-├── package.json                      # Dependências globais (Bootstrap, Chart.js, Leaflet, etc.)
+├── README.md
+├── EXPLICACAO.md
+├── package.json                     # deps globais (Bootstrap, Chart.js, Leaflet)
 │
-├── api/                              # Backend — API REST (FastAPI)
-│   ├── main.py                       # Entry point da API, rotas CRUD, inscrições e estatísticas
-│   ├── auth.py                       # Autenticação JWT, registo e login de utilizadores
-│   ├── models.py                     # Modelos SQLAlchemy (ORM) e schemas Pydantic
-│   ├── database.py                   # Configuração da ligação à BD (PostgreSQL via SQLAlchemy)
-│   └── requirements.txt              # Dependências Python do backend
+├── api/                             # Backend (FastAPI)
+│   ├── main.py                      # App factory, CRUD routes, stats, inscrições
+│   ├── auth.py                      # Router /auth, JWT, Argon2
+│   ├── models.py                    # ORM models + Pydantic schemas
+│   ├── database.py                  # Engine, SessionLocal, get_db(), init_db()
+│   ├── requirements.txt
+│   └── tests/                       # pytest + httpx
+│       ├── conftest.py
+│       ├── test_auth.py
+│       ├── test_clubes.py
+│       ├── test_utilizadores.py
+│       ├── test_tipouser.py
+│       ├── test_mapas.py
+│       └── test_stats.py
 │
-└── nuxt-app/                         # Frontend — Aplicação Nuxt 4 (Vue 3)
-    ├── nuxt.config.js                # Configuração do Nuxt (CSS, devtools)
-    ├── package.json                  # Dependências Node.js do frontend
-    ├── tsconfig.json                 # Configuração TypeScript
-    │
+└── nuxt-app/                        # Frontend (Nuxt 4)
+    ├── nuxt.config.js
+    ├── package.json
+    ├── tsconfig.json
     ├── components/
-    │   └── Header.vue                # Componente de navegação global (logo + links)
-    │
+    │   └── Header.vue               # Nav global
     ├── pages/
-    │   ├── index.vue                 # Página inicial — hero, estatísticas públicas, CTA
-    │   ├── login.vue                 # Página de autenticação — login com tipo de utilizador
-    │   ├── dashboard.vue             # Dashboard — KPIs, gráficos de utilizadores e categorias
-    │   ├── clubes.vue                # Gestão de clubes — formulário + tabela CRUD
-    │   ├── mapas.vue                 # Mapas — visualização Leaflet, pontos por clube
-    │   ├── calendario.vue            # Calendário — FullCalendar com inscrição em clubes
-    │   ├── chat.vue                  # Página de chat da plataforma
-    │   └── aboutus.vue               # Sobre nós — missão, valores, equipa, estatísticas
-    │
-    ├── assets/
-    │   ├── css/
-    │   │   ├── bootstrap.css         # Estilos Bootstrap (fonte)
-    │   │   └── bootstrap.min.css     # Estilos Bootstrap (minificado)
-    │   ├── js/
-    │   │   ├── bootstrap.js          # JavaScript Bootstrap (fonte)
-    │   │   └── bootstrap.min.js      # JavaScript Bootstrap (minificado)
-    │   └── images/                   # Imagens do projeto
-    │
-    └── public/
-        └── robots.txt                # Configuração para crawlers
+    │   ├── index.vue                # Landing (SSR) — stats públicas
+    │   ├── login.vue                # Auth — FormData → /auth/token
+    │   ├── dashboard.vue            # KPIs + Chart.js (line + doughnut)
+    │   ├── clubes.vue               # CRUD table + permissões por tipo_id
+    │   ├── mapas.vue                # Leaflet <ClientOnly> + CRUD pontos
+    │   ├── calendario.vue           # FullCalendar <ClientOnly> + ingressar
+    │   ├── chat.vue                 # Chat
+    │   └── aboutus.vue              # Sobre nós — stats em tempo real
+    ├── assets/{css,js,images}/      # Bootstrap 5 (source + minified)
+    └── public/robots.txt
 ```
 
 ---
 
-## Descrição Detalhada de Cada Ficheiro
+## Setup
 
-### API (Backend)
-
-| Ficheiro         | Propósito                                                                                                                                   |
-|------------------|---------------------------------------------------------------------------------------------------------------------------------------------|
-| `main.py`        | Entry point da API FastAPI. Define todas as rotas CRUD para clubes, utilizadores, tipos de utilizador e mapas. Inclui endpoint de inscrição em clubes (`POST /clubes/{id}/ingressar`), endpoints de estatísticas (`/stats`, `/statstpuser`, `/registrations`). Configura CORS e inicializa a BD no startup. |
-| `auth.py`        | Módulo de autenticação. Implementa registo (`POST /auth/`), login com geração de token JWT (`POST /auth/token`), verificação de passwords com Argon2, e middleware `get_current_user` para proteger rotas. |
-| `models.py`      | Define os modelos ORM SQLAlchemy (`ClubeModel`, `UtilizadorModel`, `TipoUserModel`, `MapaModel`, `MembroClubeModel`) e os schemas Pydantic para validação de entrada/saída (`ClubeCreate`, `ClubeResponse`, `IngressarResponse`, etc.). Inclui relações entre tabelas (clube↔mapas, clube↔membros, tipo↔utilizadores, utilizador↔clubes_inscritos). |
-| `database.py`    | Configuração da ligação à BD PostgreSQL via SQLAlchemy. Lê credenciais de variáveis de ambiente (`.env`). Fornece o dependency `get_db()` para injeção de sessão nas rotas e `init_db()` para criação automática de tabelas. |
-| `requirements.txt` | Lista de dependências Python: FastAPI, Uvicorn, SQLAlchemy, psycopg2, passlib, python-jose, argon2_cffi, etc. |
-
-### Frontend (Nuxt / Vue)
-
-| Ficheiro          | Propósito                                                                                                                                             |
-|-------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `Header.vue`      | Componente reutilizável de navegação. Exibe logo "Manueli's Clubes", link "Sobre nós" e botão "Entrar". Usado nas páginas públicas (index, aboutus). |
-| `index.vue`       | Landing page pública. Apresenta hero com mensagem de boas-vindas, botões de ação, e estatísticas em tempo real (clubes, membros, localizações) obtidas da API `/stats`. |
-| `login.vue`       | Página de autenticação. Formulário com username, password e seleção de tipo de utilizador (carregado da API). Envia credenciais via `FormData` para `/auth/token` e guarda o JWT no `localStorage`. |
-| `dashboard.vue`   | Painel de controlo protegido. Exibe KPIs (total clubes, membros, tipos), gráfico de linha de registos por mês (`/registrations`) e gráfico doughnut de distribuição por tipo (`/statstpuser`). Requer autenticação via JWT. |
-| `clubes.vue`      | Página de gestão de clubes. Formulário para criar novos clubes (com campo de data de evento) e tabela com edição inline. Operações de guardar e apagar com confirmação via SweetAlert2. Controlo de permissões: apenas admins (tipo_id=1) podem editar/apagar. |
-| `mapas.vue`       | Página de mapas interativos com Leaflet. Painel lateral com lista de clubes e pontos. Permite adicionar novos pontos no mapa (clique no mapa ou coordenadas manuais), associados a clubes. Controlo de acesso para admins e gestores. |
-| `calendario.vue`  | Calendário com FullCalendar. Cada clube aparece como evento na sua data. Modal de detalhe permite inscrever-se num clube via `POST /clubes/{id}/ingressar`. Usa `<ClientOnly>` para compatibilidade com SSR do Nuxt. |
-| `chat.vue`        | Página de chat da plataforma. |
-| `aboutus.vue`     | Página "Sobre nós". Apresenta missão, valores (Comunidade, Autenticidade, Abertura, Movimento), equipa (Manueli Silvestre — Fundador & CEO) e CTA para registo. Carrega estatísticas em tempo real. |
-
----
-
-## Modelo de Dados
-
-```
-┌─────────────────┐       ┌─────────────────┐
-│    tipouser     │       │   utilizador    │
-├─────────────────┤       ├─────────────────┤
-│ id (PK)         │◄──────│ tipo_id (FK)    │
-│ descricao       │  1:N  │ id (PK)         │
-└─────────────────┘       │ username        │
-                          │ password        │
-                          │ created_at      │
-                          └────────┬────────┘
-                                   │
-                                   │ 1:N
-                                   ▼
-                          ┌─────────────────┐
-                          │  membro_clube   │
-                          ├─────────────────┤
-                          │ id (PK)         │
-                          │ utilizador_id(FK)│
-                          │ clube_id (FK)   │
-                          │ inscrito_em     │
-                          │ UQ(util,clube)  │
-                          └────────┬────────┘
-                                   │
-                                   │ N:1
-                                   ▼
-┌─────────────────┐       ┌─────────────────┐
-│     mapas       │       │     clubes      │
-├─────────────────┤       ├─────────────────┤
-│ id (PK)         │       │ id (PK)         │
-│ descricao       │──────►│ nome            │
-│ latitude        │  N:1  │ email           │
-│ longitude       │       │ telefone        │
-│ clube_id (FK)   │       │ localidade      │
-└─────────────────┘       │ evento_at       │
-                          │ created_at      │
-                          └─────────────────┘
-```
-
----
-
-## Endpoints da API
-
-### Autenticação (`/auth`)
-
-| Método | Rota           | Descrição                        | Autenticação |
-|--------|----------------|----------------------------------|--------------|
-| POST   | `/auth/`       | Registo de novo utilizador       | Não          |
-| POST   | `/auth/token`  | Login — devolve JWT              | Não          |
-
-### Clubes (`/clubes`)
-
-| Método | Rota                          | Descrição                        | Autenticação |
-|--------|-------------------------------|----------------------------------|--------------|
-| POST   | `/clubes`                     | Criar novo clube                 | JWT          |
-| GET    | `/clubes`                     | Listar todos os clubes           | JWT          |
-| PUT    | `/clubes/{id}`                | Atualizar clube                  | JWT          |
-| DELETE | `/clubes/{id}`                | Apagar clube                     | JWT          |
-| POST   | `/clubes/{id}/ingressar`      | Inscrever-se num clube           | JWT          |
-
-### Utilizadores (`/utilizadores`)
-
-| Método | Rota                    | Descrição                   | Autenticação |
-|--------|-------------------------|-----------------------------|--------------|
-| GET    | `/utilizadores`         | Listar utilizadores         | JWT          |
-| PUT    | `/utilizadores/{id}`    | Atualizar utilizador        | JWT          |
-| DELETE | `/utilizadores/{id}`    | Apagar utilizador           | JWT          |
-
-### Tipos de Utilizador (`/tipouser`)
-
-| Método | Rota               | Descrição                    | Autenticação |
-|--------|---------------------|------------------------------|--------------|
-| POST   | `/tipouser`         | Criar tipo de utilizador     | JWT          |
-| GET    | `/tipouser`         | Listar tipos                 | Não          |
-| PUT    | `/tipouser/{id}`    | Atualizar tipo               | JWT          |
-| DELETE | `/tipouser/{id}`    | Apagar tipo                  | JWT          |
-
-### Mapas (`/mapas`)
-
-| Método | Rota             | Descrição              | Autenticação |
-|--------|-------------------|------------------------|--------------|
-| POST   | `/mapas`          | Criar ponto no mapa    | JWT          |
-| GET    | `/mapas`          | Listar pontos          | JWT          |
-| PUT    | `/mapas/{id}`     | Atualizar ponto        | JWT          |
-| DELETE | `/mapas/{id}`     | Apagar ponto           | JWT          |
-
-### Estatísticas
-
-| Método | Rota              | Descrição                                     | Autenticação |
-|--------|--------------------|-----------------------------------------------|--------------|
-| GET    | `/stats`           | Totais gerais (clubes, utilizadores, etc.)    | Não          |
-| GET    | `/statstpuser`     | Distribuição de utilizadores por tipo         | JWT          |
-| GET    | `/registrations`   | Registos de utilizadores por mês (ano atual)  | JWT          |
-
----
-
-## Fluxo de Autenticação
-
-```
-Cliente                              API FastAPI
-  │                                      │
-  ├─ Preenche username, password,        │
-  │  tipo de utilizador                  │
-  │                                      │
-  ├─ POST /auth/token ──────────────────►│
-  │  (FormData: username, password,      │
-  │   tipo_id)                           ├─ Busca utilizador na BD
-  │                                      ├─ Verifica password (Argon2)
-  │                                      ├─ Verifica tipo_id
-  │                                      ├─ Gera JWT (30 min)
-  │◄───── { access_token, bearer } ──────┤
-  │                                      │
-  ├─ Guarda token no localStorage        │
-  ├─ Redireciona para /dashboard         │
-  │                                      │
-  ├─ GET /clubes ───────────────────────►│
-  │  Header: Authorization: Bearer <JWT> │
-  │                                      ├─ Valida JWT
-  │                                      ├─ Extrai user do token
-  │◄───── [ lista de clubes ] ───────────┤
-```
-
----
-
-## Fluxo CRUD de Clubes
-
-```
-Utilizador                 Frontend (Vue)              API (FastAPI)           PostgreSQL
-  │                            │                            │                      │
-  ├─ Preenche formulário       │                            │                      │
-  ├─ Clica "Criar Clube" ────►│                            │                      │
-  │                            ├─ POST /clubes ────────────►│                      │
-  │                            │  { nome, email, tel, loc,  ├─ Valida JWT          │
-  │                            │    evento_at }             ├─ INSERT INTO clubes ─►│
-  │                            │                            │◄─ clube criado ───────┤
-  │                            │◄─── ClubeResponse ─────────┤                      │
-  │◄── SweetAlert "Sucesso!" ──┤                            │                      │
-  │                            ├─ GET /clubes ─────────────►│                      │
-  │                            │                            ├─ SELECT * FROM clubes►│
-  │                            │◄─── [ clubes ] ────────────┤◄─────────────────────┤
-  │◄── Tabela atualizada ──────┤                            │                      │
-```
-
----
-
-## Fluxo de Inscrição em Clube
-
-```
-Utilizador                 Calendário (Vue)            API (FastAPI)           PostgreSQL
-  │                            │                            │                      │
-  ├─ Clica num evento ────────►│                            │                      │
-  │                            ├─ Abre modal de detalhe     │                      │
-  │                            │  (nome, email, tel, loc)   │                      │
-  │                            │                            │                      │
-  ├─ Clica "Ingressar" ──────►│                            │                      │
-  │                            ├─ POST /clubes/{id}/        │                      │
-  │                            │  ingressar ───────────────►│                      │
-  │                            │                            ├─ Valida JWT          │
-  │                            │                            ├─ Verifica se clube   │
-  │                            │                            │  existe              │
-  │                            │                            ├─ INSERT membro_clube─►│
-  │                            │                            │  (UQ constraint)     │
-  │                            │                            │◄─ inscrito ───────────┤
-  │                            │◄─── IngressarResponse ─────┤                      │
-  │◄── "Inscrito com sucesso!" ┤                            │                      │
-```
-
----
-
-## Como Executar
-
-### 1. Configurar a Base de Dados
-
-Criar um ficheiro `.env` na pasta `api/` com as credenciais do PostgreSQL:
+### Variáveis de Ambiente (`api/.env`)
 
 ```env
 MYSQL_HOST=localhost
 MYSQL_PORT=5432
-MYSQL_USER=seu_user
-MYSQL_PASSWORD=sua_password
+MYSQL_USER=<user>
+MYSQL_PASSWORD=<password>
 MYSQL_DATABASE=clubes_db
+SECRET_KEY=<random-256-bit-hex>
+ALGORITHM=HS256
 ```
 
-### 2. Instalar e Executar o Backend (Terminal 1)
+### Backend
 
 ```bash
 cd api
 pip install -r requirements.txt
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+# → http://localhost:8000/docs (Swagger UI)
 ```
 
-Saída esperada:
-```
-INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-```
-
-A documentação interativa da API fica disponível em: `http://localhost:8000/docs`
-
-### 3. Instalar e Executar o Frontend (Terminal 2)
+### Frontend
 
 ```bash
 cd nuxt-app
 npm install
 npm run dev
+# → http://localhost:3000
 ```
-
-Saída esperada:
-```
-Nuxt 4.x with Nitro
-Local:    http://localhost:3000/
-```
-
-### 4. Utilização
-
-1. Aceder a `http://localhost:3000` — Página inicial pública
-2. Clicar em **"Entrar"** — Redireciona para a página de login
-3. Criar conta via API (`POST /auth/`) ou usar credenciais existentes
-4. Após login, é redirecionado para o **Dashboard**
-5. Navegar pela sidebar: **Clubes**, **Mapas**, **Calendário**
-6. No **Calendário**, clicar num clube e **"Ingressar"** para se inscrever
-
----
-
-## Principais Decisões Técnicas
-
-### Utilização de FastAPI + SQLAlchemy
-
-**Justificação:**
-- API REST de alta performance com documentação automática (Swagger UI)
-- ORM que permite trabalhar com objetos Python em vez de SQL puro
-- Validação automática de dados via Pydantic
-
-### Autenticação com JWT + Argon2
-
-**Justificação:**
-- Tokens JWT permitem autenticação stateless e escalável
-- Argon2 é o algoritmo de hashing vencedor da Password Hashing Competition, mais seguro que bcrypt
-- Diferentes tipos de utilizador permitem controlo de acesso granular
-
-### Tabela de Inscrição (membro_clube) com UniqueConstraint
-
-**Justificação:**
-- Relação muitos-para-muitos entre utilizadores e clubes
-- `UniqueConstraint("utilizador_id", "clube_id")` impede inscrições duplicadas a nível de BD
-- `IntegrityError` tratado na API para devolver resposta amigável (HTTP 409)
-
-### Nuxt 4 com SSR
-
-**Justificação:**
-- Server-Side Rendering para melhor SEO e performance inicial
-- Routing automático baseado em ficheiros (`pages/`)
-- Ecossistema Vue 3 com Composition API (`<script setup>`)
-
-### Utilização de `<ClientOnly>` no Calendário
-
-**Justificação:**
-- O FullCalendar manipula o DOM diretamente, incompatível com SSR
-- `<ClientOnly>` garante que o componente só é renderizado no browser
-- Skeleton de fallback mantém a experiência visual durante o carregamento
-
-### Operações CRUD via Fetch API
-
-**Justificação:**
-- Comunicação assíncrona sem recarregamento de página
-- Feedback visual imediato ao utilizador via SweetAlert2
-- Headers de autorização enviados em cada pedido protegido
 
 ---
 
