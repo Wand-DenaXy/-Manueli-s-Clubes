@@ -252,7 +252,7 @@ O projeto foi desenvolvido com foco em:
 | POST   | `/mapas`          | Criar ponto no mapa    | JWT          |
 | GET    | `/mapas`          | Listar pontos          | JWT          |
 | PUT    | `/mapas/{id}`     | Atualizar ponto        | JWT          |
-| DELETE | `/mapas/{id}`     | Apagar ponto           | Não          |
+| DELETE | `/mapas/{id}`     | Apagar ponto           | JWT          |
 
 ### Estatísticas
 
