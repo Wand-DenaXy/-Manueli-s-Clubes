@@ -57,7 +57,7 @@ C4Container
     ContainerDb(db, "PostgreSQL", "psycopg2", "5 tabelas: clubes, utilizador, tipouser, mapas, membro_clube")
 
     Rel(user, nuxt, "HTTPS :3000")
-    Rel(nuxt, api, "fetch HTTP/JSON :8000", "Bearer JWT")
+    Rel(nuxt, api, "fetch HTTP/JSON :8000", "httpOnly cookie (JWT)")
     Rel(api, auth_mod, "Depends(get_current_user)")
     Rel(api, db, "SQLAlchemy Session")
     Rel(auth_mod, db, "SQLAlchemy Session")
@@ -152,7 +152,7 @@ sequenceDiagram
     participant DB as PostgreSQL
 
     U->>F: Preenche username, password, tipo_id
-    F->>A: POST /auth/token (FormData)
+    F->>A: POST /auth/token (FormData, credentials: include)
     A->>DB: SELECT utilizador WHERE username = ?
     DB-->>A: row | null
 
@@ -164,16 +164,15 @@ sequenceDiagram
         A-->>F: 401 Unauthorized
     else Credenciais válidas
         A->>A: jwt.encode({sub, id, tipo_id, exp+30min}, SECRET_KEY, HS256)
-        A-->>F: 200 {access_token, token_type: "bearer"}
+        A-->>F: 200 Set-Cookie: access_token=<JWT>; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=1800
     end
 
-    F->>F: localStorage.setItem("token", access_token)
     F->>F: navigateTo("/dashboard")
 
-    Note over F,A: Pedidos subsequentes
+    Note over F,A: Pedidos subsequentes — cookie enviado automaticamente
 
-    F->>A: GET /clubes (Authorization: Bearer <JWT>)
-    A->>A: jwt.decode(token) → {sub, id, tipo_id}
+    F->>A: GET /clubes (Cookie: access_token=<JWT>)
+    A->>A: jwt.decode(request.cookies["access_token"])
     alt Token inválido/expirado
         A-->>F: 401 Unauthorized
     else Token válido
@@ -181,6 +180,20 @@ sequenceDiagram
         DB-->>A: [rows]
         A-->>F: 200 [ClubeResponse]
     end
+```
+
+### Logout (Invalidação do Cookie)
+
+```mermaid
+sequenceDiagram
+    actor U as Utilizador
+    participant F as Nuxt Frontend
+    participant A as FastAPI /auth
+
+    U->>F: Clica "Sair"
+    F->>A: POST /auth/logout (credentials: include)
+    A-->>F: 200 Set-Cookie: access_token=""; HttpOnly; Max-Age=0; Path=/
+    F->>F: navigateTo("/login")
 ```
 
 ### CRUD — Criar Clube
@@ -247,22 +260,41 @@ sequenceDiagram
 sequenceDiagram
     participant F as Nuxt (dashboard.vue)
     participant API as FastAPI
+    participant Cache as In-Memory Cache
     participant DB as PostgreSQL
 
     F->>API: GET /stats
-    API->>DB: SELECT COUNT(*) FROM clubes, utilizador, tipouser, mapas
-    DB-->>API: {counts}
+    API->>Cache: cache_get("stats")
+    alt Cache HIT
+        Cache-->>API: cached counts
+    else Cache MISS
+        API->>DB: SELECT COUNT(*) FROM clubes, utilizador, tipouser, mapas
+        DB-->>API: {counts}
+        API->>Cache: cache_set("stats", data, TTL=60s)
+    end
     API-->>F: {clubes, utilizadores, tipousers, mapas}
 
     par Parallel requests
-        F->>API: GET /statstpuser + Bearer JWT
-        API->>DB: GROUP BY tipo_id → COUNT(*)
-        DB-->>API: {tipo: count}
+        F->>API: GET /statstpuser (Cookie: JWT)
+        API->>Cache: cache.get("statstpuser")
+        alt Cache HIT
+            Cache-->>API: cached data
+        else Cache MISS
+            API->>DB: GROUP BY tipo_id → COUNT(*)
+            DB-->>API: {tipo: count}
+            API->>Cache: cache.set("statstpuser", data, TTL=60s)
+        end
         API-->>F: {admin: N, gestor: N, ...}
     and
-        F->>API: GET /registrations + Bearer JWT
-        API->>DB: SELECT EXTRACT(month), COUNT(*) WHERE year = current GROUP BY month
-        DB-->>API: [{month, count}]
+        F->>API: GET /registrations (Cookie: JWT)
+        API->>Cache: cache.get("registrations:{year}")
+        alt Cache HIT
+            Cache-->>API: cached data
+        else Cache MISS
+            API->>DB: SELECT EXTRACT(month), COUNT(*) WHERE year = current GROUP BY month
+            DB-->>API: [{month, count}]
+            API->>Cache: cache.set("registrations:{year}", data, TTL=300s)
+        end
         API-->>F: [{month: "Janeiro", count: N}, ...]
     end
 
@@ -627,20 +659,100 @@ pytest tests/ --cov=. --cov-report=term-missing
 - (−) Requer `argon2_cffi` como dependência nativa (compilação C)
 - (−) Ligeiramente mais lento que bcrypt por default (por design — é a feature)
 
-### ADR-003: JWT stateless em vez de sessions server-side
+### ADR-003: JWT em httpOnly cookie em vez de localStorage
 
-**Status:** Aceite  
-**Contexto:** A arquitetura é SPA + API separada. Sessions server-side requerem armazenamento partilhado (Redis/DB) e gestão de cookies cross-origin.  
-**Decisão:** JWT (HMAC-SHA256) com payload `{sub, id, tipo_id, exp}`, tempo de vida 30 minutos, sem refresh token.  
+**Status:** Aceite (supersede versão anterior com localStorage)  
+**Contexto:** A arquitetura é SPA + API separada. O token JWT precisa de ser persistido no cliente entre requests. Existem duas abordagens comuns:
+
+| Abordagem | XSS | CSRF | JS Access |
+|-----------|-----|------|-----------|
+| `localStorage` | Vulnerável — qualquer script acede ao token | Imune — token não é enviado automaticamente | Sim |
+| `httpOnly cookie` | Imune — JS não consegue ler o cookie | Requer mitigação (`SameSite`, CSRF token) | Não |
+
+**Decisão:** JWT transportado em cookie `httpOnly; Secure; SameSite=Lax` com `Max-Age=1800` (30 min). O backend faz `Set-Cookie` no login e lê `request.cookies["access_token"]` nos endpoints protegidos. Logout = `Set-Cookie` com `Max-Age=0`.
+
+**Implementação:**
+
+```python
+# auth.py — login response
+from fastapi.responses import JSONResponse
+
+@router.post("/token")
+async def login(form_data, db):
+    user = authenticate_user(db, form_data.username, form_data.password, form_data.tipo_id)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    token = create_access_token(user, timedelta(minutes=30))
+    response = JSONResponse(content={"message": "Login efetuado"})
+    response.set_cookie(
+        key="access_token",
+        value=token,
+        httponly=True,          # inacessível a document.cookie / JS
+        secure=True,            # só enviado sobre HTTPS
+        samesite="lax",         # protege contra CSRF cross-site
+        max_age=1800,           # 30 min — alinhado com exp do JWT
+        path="/",
+    )
+    return response
+
+# auth.py — get_current_user lê do cookie
+from fastapi import Request
+
+async def get_current_user(request: Request):
+    token = request.cookies.get("access_token")
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        ...
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+# auth.py — logout
+@router.post("/logout")
+async def logout():
+    response = JSONResponse(content={"message": "Logout efetuado"})
+    response.delete_cookie(key="access_token", path="/")
+    return response
+```
+
+```javascript
+// Frontend — fetch com credentials
+const resp = await fetch(`${API}/auth/token`, {
+  method: 'POST',
+  body: formData,
+  credentials: 'include'   // envia e recebe cookies cross-origin
+})
+
+// Pedidos protegidos — cookie é enviado automaticamente
+const clubes = await fetch(`${API}/clubes`, {
+  credentials: 'include'
+})
+```
+
 **Consequências:**
-- (+) Stateless — o servidor não guarda estado de sessão, escala horizontalmente
-- (+) Frontend guarda token em `localStorage`, envia via `Authorization: Bearer`
-- (+) Payload contém `tipo_id` → controlo de acesso sem query adicional à BD
-- (−) Token não revogável antes do `exp` (sem blacklist implementada)
-- (−) `localStorage` vulnerável a XSS (mitigado pela ausência de inputs não sanitizados em páginas autenticadas)
-- (−) Sem refresh token — utilizador precisa re-login após 30 min
+- (+) **XSS-safe** — `httpOnly` impede `document.cookie` e qualquer acesso por JavaScript ao token
+- (+) **Sem gestão manual** — browser envia cookie automaticamente (sem `Authorization` header explícito)
+- (+) Stateless mantido — o servidor continua a não guardar estado de sessão
+- (+) Logout limpo — `delete_cookie` força `Max-Age=0`
+- (+) `SameSite=Lax` bloqueia envio em POST cross-site (mitigação CSRF)
+- (−) Requer `credentials: 'include'` em todos os `fetch` no frontend
+- (−) CORS precisa de `allow_credentials=True` + origin explícita (não pode ser `*`)
+- (−) Token continua não revogável antes do `exp` (sem blacklist)
+- (−) Sem refresh token — re-login após 30 min
 
-**Trade-off aceite:** Para o scope do projeto, a simplicidade compensa a ausência de revogação. Uma evolução futura pode adicionar refresh tokens + blacklist em Redis.
+**CORS necessário (atualizado):**
+```python
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # origin explícita obrigatória
+    allow_credentials=True,                    # permite Set-Cookie cross-origin
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+```
+
+> **Nota:** `allow_origins=["*"]` + `allow_credentials=True` é inválido por spec CORS. O origin tem de ser explícito.
 
 ### ADR-004: UniqueConstraint na tabela de inscrição (membro_clube)
 
@@ -674,17 +786,28 @@ except IntegrityError:
 - (−) Conteúdo client-only invisível para crawlers sem JavaScript
 - (−) Ligeiro flash durante hidratação em conexões lentas
 
-### ADR-006: CORS `allow_origins=["*"]` em desenvolvimento
+### ADR-006: CORS com origin explícita + credentials
 
-**Status:** Aceite (temporário)  
-**Contexto:** Frontend e backend correm em portas diferentes (3000 vs 8000). Sem CORS, o browser bloqueia pedidos cross-origin.  
-**Decisão:** `allow_origins=["*"]` com `allow_credentials=False` para desenvolvimento.  
+**Status:** Aceite (atualizado por ADR-003)  
+**Contexto:** Com a adoção de `httpOnly cookies` (ADR-003), o browser precisa de `credentials: 'include'` nos fetch. A spec CORS exige que `allow_credentials=True` acompanhe um `allow_origins` **explícito** — wildcard `*` é rejeitado.  
+**Decisão:** `allow_origins=["http://localhost:3000"]` com `allow_credentials=True` em dev. Em produção, apontar para o domínio real.  
 **Consequências:**
-- (+) Desenvolvimento sem friction entre frontend e backend
-- (−) Em produção, deve ser restrito ao domínio do frontend
-- (−) `allow_credentials=False` impede uso de cookies (irrelevante — usamos JWT em header)
+- (+) Cookies `Set-Cookie` e `Cookie` funcionam cross-origin
+- (+) Sem wildcard — superfície de ataque reduzida mesmo em dev
+- (−) Novo domínio = nova entrada em `allow_origins`
+- (−) Em ambientes com múltiplos frontends (staging, preview), requer lista dinâmica via env var
 
-> **TODO produção:** Alterar para `allow_origins=["https://domain.com"]`.
+```python
+# Configuração recomendada
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+```
 
 ### ADR-007: Monólito modular em vez de microserviços
 
@@ -698,6 +821,96 @@ except IntegrityError:
 - (+) Frontend e backend no mesmo repo — versionamento conjunto
 - (−) Escalabilidade limitada a vertical (mitigado pelo ASGI Uvicorn com workers)
 - (−) Se o projeto crescer significativamente, pode precisar de decomposição
+
+### ADR-008: Caching in-memory com invalidação por write
+
+**Status:** Aceite  
+**Contexto:** Os endpoints de estatísticas (`/stats`, `/statstpuser`, `/registrations`) executam queries agregadas (`COUNT`, `GROUP BY`, `EXTRACT`) em cada request. Estas queries são caras relativa­mente ao overhead de um simples SELECT, mas os dados mudam pouco (novos registos são esporádicos).  
+**Decisão:** Cache in-memory (dict Python) com TTL, invalidado em operações de escrita (POST/PUT/DELETE). Sem Redis — o deploy mantém-se single-process.
+
+**Implementação:**
+
+```python
+# cache.py
+import time
+from typing import Any
+
+_cache: dict[str, tuple[float, Any]] = {}
+
+def cache_get(key: str) -> Any | None:
+    """Devolve valor se existir e não tiver expirado."""
+    entry = _cache.get(key)
+    if entry is None:
+        return None
+    expires_at, value = entry
+    if time.monotonic() > expires_at:
+        del _cache[key]
+        return None
+    return value
+
+def cache_set(key: str, value: Any, ttl: int = 60) -> None:
+    """Guarda valor com TTL em segundos."""
+    _cache[key] = (time.monotonic() + ttl, value)
+
+def cache_invalidate(*prefixes: str) -> None:
+    """Invalida todas as keys que começam com qualquer dos prefixos."""
+    keys_to_delete = [
+        k for k in _cache
+        if any(k.startswith(p) for p in prefixes)
+    ]
+    for k in keys_to_delete:
+        del _cache[k]
+```
+
+**Estratégia por endpoint:**
+
+| Endpoint           | Cache Key              | TTL   | Invalidado por                       |
+|--------------------|------------------------|-------|--------------------------------------|
+| `GET /stats`       | `stats`                | 60s   | POST/PUT/DELETE em clubes, utilizadores, mapas |
+| `GET /statstpuser` | `statstpuser`          | 60s   | POST/PUT/DELETE em utilizadores, tipouser |
+| `GET /registrations`| `registrations:{year}`| 300s  | POST /auth/ (novo registo)           |
+| `GET /clubes`      | `clubes:list`          | 30s   | POST/PUT/DELETE em clubes            |
+| `GET /tipouser`    | `tipouser:list`        | 120s  | POST/PUT/DELETE em tipouser          |
+
+**Padrão de uso nos endpoints:**
+
+```python
+from cache import cache_get, cache_set, cache_invalidate
+
+@app.get("/stats")
+def get_stats(db: Session = Depends(get_db)):
+    cached = cache_get("stats")
+    if cached is not None:
+        return cached
+
+    result = {
+        "clubes": db.query(ClubeModel).count(),
+        "utilizadores": db.query(UtilizadorModel).count(),
+        "tipousers": db.query(TipoUserModel).count(),
+        "mapas": db.query(MapaModel).count(),
+    }
+    cache_set("stats", result, ttl=60)
+    return result
+
+@app.post("/clubes", response_model=ClubeResponse)
+def create_clube(clube: ClubeCreate, db = Depends(get_db), user = Depends(get_current_user)):
+    db_clube = ClubeModel(**clube.dict())
+    db.add(db_clube)
+    db.commit()
+    db.refresh(db_clube)
+    cache_invalidate("stats", "clubes:")   # invalida stats e lista de clubes
+    return db_clube
+```
+
+**Consequências:**
+- (+) Queries agregadas executam no máximo 1x por TTL — redução de ~90% de queries em endpoints de leitura frequente
+- (+) Zero dependências externas (sem Redis/Memcached)
+- (+) Invalidação cirúrgica — write operations limpam apenas keys afetadas
+- (+) `time.monotonic()` imune a alterações de relógio do sistema
+- (−) Cache não partilhada entre workers — se `uvicorn --workers N > 1`, cada worker tem cache independente (aceitável para single-process dev)
+- (−) Sem LRU/maxsize — em cenários extremos, a memória pode crescer (mitigado pelo número finito de cache keys)
+
+**Evolução:** Migrar para Redis quando o deploy usar múltiplos workers ou instâncias. A interface `cache_get/cache_set/cache_invalidate` permite substituir a implementação sem alterar os endpoints.
 
 ---
 
