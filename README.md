@@ -57,7 +57,7 @@ C4Container
     ContainerDb(db, "PostgreSQL", "psycopg2", "5 tabelas: clubes, utilizador, tipouser, mapas, membro_clube")
 
     Rel(user, nuxt, "HTTPS :3000")
-    Rel(nuxt, api, "fetch HTTP/JSON :8000", "httpOnly cookie (JWT)")
+    Rel(nuxt, api, "fetch HTTP/JSON :8000", "Authorization: Bearer JWT")
     Rel(api, auth_mod, "Depends(get_current_user)")
     Rel(api, db, "SQLAlchemy Session")
     Rel(auth_mod, db, "SQLAlchemy Session")
@@ -152,7 +152,7 @@ sequenceDiagram
     participant DB as PostgreSQL
 
     U->>F: Preenche username, password, tipo_id
-    F->>A: POST /auth/token (FormData, credentials: include)
+    F->>A: POST /auth/token (FormData)
     A->>DB: SELECT utilizador WHERE username = ?
     DB-->>A: row | null
 
@@ -164,15 +164,15 @@ sequenceDiagram
         A-->>F: 401 Unauthorized
     else Credenciais válidas
         A->>A: jwt.encode({sub, id, tipo_id, exp+30min}, SECRET_KEY, HS256)
-        A-->>F: 200 Set-Cookie: access_token=#lt;JWT#gt;#59; HttpOnly#59; Secure#59; SameSite=Lax#59; Path=/#59; Max-Age=1800
+        A-->>F: 200 {access_token, token_type: bearer}
     end
 
-    F->>F: navigateTo("/dashboard")
+    F->>F: Armazena token + navigateTo("/dashboard")
 
-    Note over F,A: Pedidos subsequentes — cookie enviado automaticamente
+    Note over F,A: Pedidos subsequentes — header Authorization enviado pelo frontend
 
-    F->>A: GET /clubes (Cookie: access_token=#lt;JWT#gt;)
-    A->>A: jwt.decode(request.cookies[#quot;access_token#quot;])
+    F->>A: GET /clubes (Authorization: Bearer token)
+    A->>A: jwt.decode(token, SECRET_KEY, [HS256])
     alt Token inválido/expirado
         A-->>F: 401 Unauthorized
     else Token válido
@@ -180,20 +180,6 @@ sequenceDiagram
         DB-->>A: [rows]
         A-->>F: 200 [ClubeResponse]
     end
-```
-
-### Logout (Invalidação do Cookie)
-
-```mermaid
-sequenceDiagram
-    actor U as Utilizador
-    participant F as Nuxt Frontend
-    participant A as FastAPI /auth
-
-    U->>F: Clica "Sair"
-    F->>A: POST /auth/logout (credentials: include)
-    A-->>F: 200 Set-Cookie: access_token=#quot;#quot;#59; HttpOnly#59; Max-Age=0#59; Path=/
-    F->>F: navigateTo("/login")
 ```
 
 ### CRUD — Criar Clube
@@ -260,41 +246,22 @@ sequenceDiagram
 sequenceDiagram
     participant F as Nuxt (dashboard.vue)
     participant API as FastAPI
-    participant Cache as In-Memory Cache
     participant DB as PostgreSQL
 
     F->>API: GET /stats
-    API->>Cache: cache_get("stats")
-    alt Cache HIT
-        Cache-->>API: cached counts
-    else Cache MISS
-        API->>DB: SELECT COUNT(*) FROM clubes, utilizador, tipouser, mapas
-        DB-->>API: {counts}
-        API->>Cache: cache_set("stats", data, TTL=60s)
-    end
+    API->>DB: SELECT COUNT(*) FROM clubes, utilizador, tipouser, mapas
+    DB-->>API: {counts}
     API-->>F: {clubes, utilizadores, tipousers, mapas}
 
     par Parallel requests
-        F->>API: GET /statstpuser (Cookie: JWT)
-        API->>Cache: cache.get("statstpuser")
-        alt Cache HIT
-            Cache-->>API: cached data
-        else Cache MISS
-            API->>DB: GROUP BY tipo_id → COUNT(*)
-            DB-->>API: {tipo: count}
-            API->>Cache: cache.set("statstpuser", data, TTL=60s)
-        end
+        F->>API: GET /statstpuser (Authorization: Bearer token)
+        API->>DB: GROUP BY tipo_id, COUNT(*)
+        DB-->>API: {tipo: count}
         API-->>F: {admin: N, gestor: N, ...}
     and
-        F->>API: GET /registrations (Cookie: JWT)
-        API->>Cache: cache.get("registrations:{year}")
-        alt Cache HIT
-            Cache-->>API: cached data
-        else Cache MISS
-            API->>DB: SELECT EXTRACT(month), COUNT(*) WHERE year = current GROUP BY month
-            DB-->>API: [{month, count}]
-            API->>Cache: cache.set("registrations:{year}", data, TTL=300s)
-        end
+        F->>API: GET /registrations (Authorization: Bearer token)
+        API->>DB: SELECT EXTRACT(month), COUNT(*) WHERE year = current GROUP BY month
+        DB-->>API: [{month, count}]
         API-->>F: [{month: "Janeiro", count: N}, ...]
     end
 

@@ -5,7 +5,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from passlib.context import CryptContext
-from openai import OpenAI
 from dotenv import load_dotenv
 from typing import Annotated
 from datetime import datetime
