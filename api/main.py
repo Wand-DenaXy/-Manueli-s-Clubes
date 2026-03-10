@@ -32,6 +32,7 @@ app.add_middleware(
 )
 db_dependency = Annotated[Session, Depends(get_db)]
 user_dependency = Annotated[UtilizadorModel, Depends(get_current_user)]
+bcrypt_context = CryptContext(schemes=["argon2"], deprecated="auto")
 load_dotenv()
 
 @app.on_event("startup")
@@ -126,7 +127,14 @@ def create_clube(
     db.commit()
     db.refresh(db_clube)
     cache_invalidate("stats", "clubes:")
-    return db_clube
+    return {
+        "id": db_clube.id,
+        "nome": db_clube.nome,
+        "email": db_clube.email,
+        "telefone": db_clube.telefone,
+        "localidade": db_clube.localidade,
+        "evento_at": db_clube.evento_at,
+    }
 
 @app.get("/clubes", response_model=list[ClubeResponse])
 def list_clubes(
@@ -137,8 +145,19 @@ def list_clubes(
     if cached is not None:
         return cached
     result = db.query(ClubeModel).all()
-    cache_set("clubes:list", result, ttl=30)
-    return result
+    clubes_dict = [
+        {
+            "id": clube.id,
+            "nome": clube.nome,
+            "email": clube.email,
+            "telefone": clube.telefone,
+            "localidade": clube.localidade,
+            "evento_at": clube.evento_at
+        }
+        for clube in result
+    ]
+    cache_set("clubes:list", clubes_dict, ttl=30)
+    return clubes_dict
 
 @app.put("/clubes/{clube_id}", response_model=ClubeResponse)
 def update_clube(
@@ -155,7 +174,14 @@ def update_clube(
     db.commit()
     db.refresh(db_clube)
     cache_invalidate("stats", "clubes:")
-    return db_clube
+    return {
+        "id": db_clube.id,
+        "nome": db_clube.nome,
+        "email": db_clube.email,
+        "telefone": db_clube.telefone,
+        "localidade": db_clube.localidade,
+        "evento_at": db_clube.evento_at,
+    }
 
 @app.delete("/clubes/{clube_id}", status_code=204)
 def delete_clube(
@@ -176,8 +202,21 @@ def list_utilizadores(
     db: Session = Depends(get_db),
     user: UtilizadorModel = Depends(get_current_user)
 ):
-    utilizadores = db.query(UtilizadorModel).options(joinedload(UtilizadorModel.tipo)).all()
-    return [UtilizadorResponse.from_orm(u) for u in utilizadores]
+    cached = cache_get("utilizadores:list")
+    if cached is not None:
+        return cached
+    result = db.query(UtilizadorModel).options(joinedload(UtilizadorModel.tipo)).all()
+    utilizadores_dict = [
+        {
+            "id": utilizador.id,
+            "username": utilizador.username,
+            "tipo": {"id": utilizador.tipo.id, "descricao": utilizador.tipo.descricao},
+            "created_at": utilizador.created_at
+        }
+        for utilizador in result
+    ]
+    cache_set("utilizadores:list", utilizadores_dict, ttl=30)
+    return utilizadores_dict
 
 @app.delete("/utilizadores/{utilizador_id}", status_code=204)
 def delete_utilizador(
@@ -205,11 +244,19 @@ def update_utilizador(
         raise HTTPException(status_code=404, detail="Utilizador não encontrado")
 
     for key, value in utilizador.dict().items():
-        setattr(db_utilizador, key, value)
+        if key == "password":
+            setattr(db_utilizador, key, bcrypt_context.hash(value))
+        else:
+            setattr(db_utilizador, key, value)
     db.commit()
     db.refresh(db_utilizador)
     cache_invalidate("stats", "statstpuser")
-    return UtilizadorResponse.from_orm(db_utilizador)
+    return {
+        "id": db_utilizador.id,
+        "username": db_utilizador.username,
+        "tipo": {"id": db_utilizador.tipo.id, "descricao": db_utilizador.tipo.descricao},
+        "created_at": db_utilizador.created_at,
+    }
 
 
 @app.post("/tipouser", response_model=TipoUserResponse)
@@ -223,7 +270,7 @@ def create_tipo_user(
     db.commit()
     db.refresh(novo_tipo)
     cache_invalidate("stats", "statstpuser", "tipouser:")
-    return novo_tipo
+    return {"id": novo_tipo.id, "descricao": novo_tipo.descricao}
 
 @app.get("/tipouser", response_model=list[TipoUserResponse])
 def list_tipo_user(
@@ -233,8 +280,12 @@ def list_tipo_user(
     if cached is not None:
         return cached
     result = db.query(TipoUserModel).all()
-    cache_set("tipouser:list", result, ttl=120)
-    return result
+    tipouser_dict = [
+        {"id": tipo.id, "descricao": tipo.descricao}
+        for tipo in result
+    ]
+    cache_set("tipouser:list", tipouser_dict, ttl=120)
+    return tipouser_dict
 
 @app.put("/tipouser/{tipo_id}", response_model=TipoUserResponse)
 def update_tipo_user(
@@ -251,7 +302,7 @@ def update_tipo_user(
     db.commit()
     db.refresh(db_tipo)
     cache_invalidate("stats", "statstpuser", "tipouser:")
-    return db_tipo
+    return {"id": db_tipo.id, "descricao": db_tipo.descricao}
 
 @app.delete("/tipouser/{tipo_id}", status_code=204)
 def delete_tipo_user(
@@ -283,7 +334,13 @@ def create_mapa(
     db.commit()
     db.refresh(db_mapa)
     cache_invalidate("stats", "mapas:")
-    return db_mapa
+    return {
+        "id": db_mapa.id,
+        "descricao": db_mapa.descricao,
+        "latitude": db_mapa.latitude,
+        "longitude": db_mapa.longitude,
+        "clube_id": db_mapa.clube_id,
+    }
 
 @app.get("/mapas", response_model=list[MapaResponse])
 def list_mapas(
@@ -294,8 +351,18 @@ def list_mapas(
     if cached is not None:
         return cached
     result = db.query(MapaModel).all()
-    cache_set("mapas:list", result, ttl=60)
-    return result
+    mapas_dict = [
+        {
+            "id": mapa.id,
+            "descricao": mapa.descricao,
+            "latitude": mapa.latitude,
+            "longitude": mapa.longitude,
+            "clube_id": mapa.clube_id,
+        }
+        for mapa in result
+    ]
+    cache_set("mapas:list", mapas_dict, ttl=60)
+    return mapas_dict
 
 @app.put("/mapas/{mapa_id}", response_model=MapaResponse)
 def update_mapa(
@@ -318,7 +385,13 @@ def update_mapa(
     db.commit()
     db.refresh(db_mapa)
     cache_invalidate("stats", "mapas:")
-    return db_mapa
+    return {
+        "id": db_mapa.id,
+        "descricao": db_mapa.descricao,
+        "latitude": db_mapa.latitude,
+        "longitude": db_mapa.longitude,
+        "clube_id": db_mapa.clube_id,
+    }
 
 @app.delete("/mapas/{mapa_id}", status_code=200)
 def delete_mapa(
