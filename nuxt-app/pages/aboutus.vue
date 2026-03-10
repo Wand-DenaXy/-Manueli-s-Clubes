@@ -31,7 +31,6 @@
       </p>
     </section>
 
-    <!-- Mission + Vision -->
     <section class="section two-col">
       <div class="text-block" style="animation-delay: 0.05s">
         <span class="block-tag">Missão</span>

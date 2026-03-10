@@ -201,7 +201,7 @@ import dayGridPlugin from '@fullcalendar/daygrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import ptLocale from '@fullcalendar/core/locales/pt'
 
-const BASE_URL = 'http://192.168.1.83:8000'
+const BASE_URL = 'http://localhost:8000'
 
 const route        = useRoute()
 const router       = useRouter()

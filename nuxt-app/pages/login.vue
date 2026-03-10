@@ -99,7 +99,7 @@ async function fazerLogin() {
     formData.append('password', password.value)
     formData.append('tipo_id', Number(tpUser.value))
 
-    const response = await fetch('http://192.168.1.83:8000/auth/token', {
+    const response = await fetch('http://localhost:8000/auth/token', {
       method: 'POST',
       body: formData
     })
@@ -124,7 +124,7 @@ async function fazerLogin() {
   }
 }
 async function listarTipoUser() {
-  const url = `http://192.168.1.83:8000/tipouser`;
+  const url = `http://localhost:8000/tipouser`;
 
   try {
     const response = await fetch(url, { method: "GET" });

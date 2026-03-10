@@ -57,7 +57,7 @@ const mapas = ref(0)
 
 async function buscarStats() {
   try {
-    const response = await fetch('http://192.168.1.83:8000/stats')
+    const response = await fetch('http://localhost:8000/stats')
 
     if (!response.ok) {
       throw new Error("Erro ao buscar estatísticas")

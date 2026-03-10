@@ -251,7 +251,7 @@ const selectedPonto = ref(null)
 const activeTab = ref('clubes')
 const loadingPontos = ref(false)
 
-const BASE_URL = 'http://192.168.1.83:8000'
+const BASE_URL = 'http://localhost:8000'
 
 const PALETTE = ['#c9a96e','#6e8fc9','#6ec97e','#c96e8f','#9b6ec9','#c96e6e','#6ec9c9','#c9b96e']
 

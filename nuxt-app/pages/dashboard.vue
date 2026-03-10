@@ -141,7 +141,7 @@ async function kpiCards() {
   const token = localStorage.getItem('access_token')
   if (!token) { return router.push('/') }
   try {
-    const response = await fetch('http://192.168.1.83:8000/stats')
+    const response = await fetch('http://localhost:8000/stats')
 
     if (!response.ok) {
       throw new Error("Erro ao buscar estatísticas")
@@ -166,7 +166,7 @@ async function CategoriasGrafic() {
   }
 
   try {
-    const response = await fetch(`http://192.168.1.83:8000/statstpuser`, {
+    const response = await fetch(`http://localhost:8000/statstpuser`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     })
@@ -236,7 +236,7 @@ async function UtilizadoresGrafic() {
   const token = localStorage.getItem('access_token')
   if (!token) return router.push('/login')
 
-  const response = await fetch('http://192.168.1.83:8000/registrations', {
+  const response = await fetch('http://localhost:8000/registrations', {
     headers: { Authorization: `Bearer ${token}` }
   })
 

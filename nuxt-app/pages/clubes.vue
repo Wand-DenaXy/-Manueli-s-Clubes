@@ -180,7 +180,7 @@ const currentMonthYear = computed(() =>
     .replace(/^\w/, c => c.toUpperCase())
 )
 
-const BASE_URL = 'http://192.168.1.83:8000'
+const BASE_URL = 'http://localhost:8000'
 const getBaseUrl = () => BASE_URL
 
 function getTipoFromToken() {
