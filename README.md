@@ -1,9 +1,117 @@
 # Manueli's Clubes
 
-Plataforma web full-stack de gestão de clubes — **Nuxt 4** + **FastAPI** + **PostgreSQL**.
+**Plataforma full-stack de gestão de clubes** — criar clubes, gerir membros, visualizar eventos no calendário e localizar pontos no mapa interativo.
 
 <img width="1000" height="500" alt="ManueliClube" src="https://github.com/user-attachments/assets/786aee57-cdbc-4be2-823b-51c221d7e4b8" />
 
+<p>
+  <img alt="Python" src="https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white" />
+  <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white" />
+  <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-15-4169E1?logo=postgresql&logoColor=white" />
+  <img alt="Nuxt" src="https://img.shields.io/badge/Nuxt-4.3-00DC82?logo=nuxtdotjs&logoColor=white" />
+  <img alt="Vue" src="https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white" />
+  <img alt="Docker" src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white" />
+  <img alt="JWT" src="https://img.shields.io/badge/Auth-JWT%20+%20Argon2-000000?logo=jsonwebtokens&logoColor=white" />
+  <img alt="Tests" src="https://img.shields.io/badge/Tests-35%20passed-brightgreen?logo=pytest&logoColor=white" />
+</p>
+
+---
+
+## Funcionalidades
+
+### Dashboard — KPIs e Gráficos em Tempo Real
+
+Painel de administração com 3 cards de métricas (clubes, utilizadores, mapas), gráfico de linha (registos mensais) e doughnut (distribuição por tipo de utilizador) — tudo alimentado pela API com cache.
+
+<!-- 📸 SCREENSHOT: Dashboard com sidebar escura à esquerda, 3 KPI cards no topo (Clubes, Utilizadores, Mapas com ícones e contadores), gráfico de linha Chart.js (registos mensais) à esquerda e gráfico doughnut (distribuição por tipo de user) à direita. Fundo escuro (#1a1a2e). -->
+
+<img width="1000" height="500" alt="Dashboard" src="nuxt-app/assets/images/DashboardManuel.PNG" />
+
+---
+
+### Gestão de Clubes — CRUD Completo
+
+Tabela interativa com criação, edição inline e eliminação — permissões por tipo de utilizador (admin vê tudo, gestor pode editar). SweetAlert2 para confirmações.
+
+<!-- 📸 SCREENSHOT: Formulário escuro com 4 campos (nome, email, telefone, localidade) + botão "Guardar", seguido de tabela responsiva com colunas (nome, email, telefone, localidade, ações) e botões Editar/Eliminar por linha. -->
+
+---
+
+### Mapa Interativo — Leaflet.js
+
+Mapa dark-themed com marcadores dos clubes, painel lateral com lista de pontos e formulário para adicionar novas localizações por coordenadas GPS.
+
+<!-- 📸 SCREENSHOT: Layout 3 painéis — lista à esquerda, mapa Leaflet ao centro (basemap escuro CartoDB dark_all com marcadores), formulário à direita (descrição, latitude, longitude, dropdown clube_id). -->
+
+<img width="1000" height="500" alt="Mapas" src="nuxt-app/assets/images/ManuelMapas.PNG" />
+
+---
+
+### Calendário de Eventos — FullCalendar
+
+Calendário mensal com eventos dos clubes em cores diferentes. Clicar num evento abre um painel com detalhes e botão "Ingressar" — inscrição com proteção de duplicação (HTTP 409).
+
+<!-- 📸 SCREENSHOT: Grelha FullCalendar mensal com blocos de eventos coloridos. Painel slide-in à direita com nome do clube, data, localidade e botão "Ingressar". -->
+
+---
+
+### Autenticação — JWT + Argon2
+
+Login com username, password e seleção de tipo de utilizador. Passwords hashed com Argon2id. Token JWT (30 min) enviado no header `Authorization: Bearer`.
+
+<!-- 📸 SCREENSHOT: Layout 50/50 — formulário escuro à esquerda (username, password, dropdown tipo) com botão "Login", imagem/banner à direita. -->
+
+<img width="1000" height="500" alt="Login" src="nuxt-app/assets/images/ManuelLogin.PNG" />
+
+---
+
+### Landing Page e About Us
+
+Página inicial com hero section, call-to-action e barra de estatísticas em tempo real (total de clubes, utilizadores, mapas). Página "Sobre nós" com missão, valores e equipa.
+
+<!-- 📸 SCREENSHOT: Hero escuro com título grande, subtítulo, 2 botões CTA (Login / Ver Clubes) e barra de stats (3 contadores animados). -->
+
+---
+
+## Quick Start
+
+```bash
+# 1. Clonar
+git clone https://github.com/<user>/Manueli-s-Clubes.git
+cd Manueli-s-Clubes
+
+# 2. Configurar variáveis de ambiente
+#    → .env (raiz): DB_USER, DB_PASSWORD, DB_NAME
+#    → api/.env:   MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DATABASE, SECRET_KEY, ALGORITHM
+
+# 3. Lançar tudo
+docker compose up --build
+```
+
+| Serviço    | URL                          |
+|------------|------------------------------|
+| Frontend   | http://localhost:3000         |
+| API (Swagger) | http://localhost:8000/docs |
+| PostgreSQL | localhost:5432               |
+
+---
+
+## Testes — 35/35 Passed
+
+```bash
+cd api && pytest tests/ -v --tb=short
+```
+
+```
+tests/test_auth.py         ✅ 5 passed   (registo, login, token, password errada, rota protegida)
+tests/test_clubes.py       ✅ 8 passed   (CRUD + inscrição + duplicação 409 + 404)
+tests/test_utilizadores.py ✅ 4 passed   (list, update, delete, 404)
+tests/test_tipouser.py     ✅ 6 passed   (CRUD + 404)
+tests/test_mapas.py        ✅ 7 passed   (CRUD + clube inexistente + 404)
+tests/test_stats.py        ✅ 5 passed   (stats, statstpuser, registrations, auth guard)
+```
+
+---
 
 ## Tech Stack
 
@@ -22,7 +130,45 @@ Plataforma web full-stack de gestão de clubes — **Nuxt 4** + **FastAPI** + **
 
 ---
 
-## Arquitetura — Diagramas C4
+## Estrutura do Projeto
+
+```
+-Manueli-s-Clubes/
+├── docker-compose.yml               # Orquestração: db + api + frontend
+├── package.json                     # deps globais (Bootstrap, Chart.js, Leaflet)
+│
+├── api/                             # Backend (FastAPI)
+│   ├── Dockerfile                   # python:3.11-slim → uvicorn :8000
+│   ├── app/
+│   │   ├── main.py                  # CRUD routes, stats, inscrições, cache
+│   │   ├── auth.py                  # JWT + Argon2
+│   │   ├── models.py               # ORM + Pydantic schemas
+│   │   ├── database.py             # PostgreSQL connection
+│   │   ├── cache.py                # TTL + invalidação por prefixo
+│   │   └── requirements.txt
+│   └── tests/                       # 35 testes (pytest + httpx)
+│
+└── nuxt-app/                        # Frontend (Nuxt 4)
+    ├── Dockerfile                   # node:20 → :3000
+    ├── pages/
+    │   ├── index.vue                # Landing — stats públicas
+    │   ├── login.vue                # Auth
+    │   ├── dashboard.vue            # KPIs + Chart.js
+    │   ├── clubes.vue               # CRUD table
+    │   ├── mapas.vue                # Leaflet map
+    │   ├── calendario.vue           # FullCalendar + inscrição
+    │   └── aboutus.vue              # Sobre nós
+    └── components/Header.vue        # Nav global
+```
+
+---
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- DEEP DIVE — Secções técnicas em detalhes colapsáveis       -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+<details>
+<summary><strong>Arquitetura — Diagramas C4</strong></summary>
 
 ### Nível 1 — Contexto do Sistema
 
@@ -66,7 +212,6 @@ C4Container
     Rel(auth_mod, db, "SQLAlchemy Session")
 ```
 
-
 ### Nível 3 — Componentes (API)
 
 ```mermaid
@@ -92,9 +237,10 @@ C4Component
     Rel(database, db, "psycopg2 connection pool")
 ```
 
----
+</details>
 
-## Modelo de Dados (ER)
+<details>
+<summary><strong>Modelo de Dados (ER)</strong></summary>
 
 ```mermaid
 erDiagram
@@ -144,11 +290,12 @@ erDiagram
 
 > **Constraint:** `UniqueConstraint("utilizador_id", "clube_id")` em `membro_clube` — impede inscrição duplicada a nível de BD.
 
----
+</details>
 
-## Cache — Estratégia de TTL e Invalidação
+<details>
+<summary><strong>Cache — Estratégia de TTL e Invalidação</strong></summary>
 
-O sistema usa uma cache in-memory (`cache.py`) com TTL por key e invalidação automática por prefixo em operações de escrita.
+O sistema usa cache in-memory (`cache.py`) com TTL por key e invalidação automática por prefixo em operações de escrita.
 
 ### Módulo `cache.py`
 
@@ -191,11 +338,9 @@ def cache_invalidate(*prefixes: str) -> None:
 ### Fluxo de Leitura (GET)
 
 ```python
-# Exemplo: GET /stats
 cached = cache_get("stats")
 if cached is not None:
     return cached          # responde sem tocar na BD
-
 result = { ... }          # query à BD
 cache_set("stats", result, ttl=60)
 return result
@@ -204,14 +349,122 @@ return result
 ### Fluxo de Escrita (POST/PUT/DELETE)
 
 ```python
-# Exemplo: POST /clubes — após db.commit()
 cache_invalidate("stats", "clubes:")
 # Remove todas as keys que começam com "stats" ou "clubes:"
 ```
 
----
+</details>
 
-## Sequence Diagrams
+<details>
+<summary><strong>Endpoints da API</strong></summary>
+
+### Auth (`/auth`)
+
+| Método | Rota           | Body / Params                              | Response          | Auth |
+|--------|----------------|--------------------------------------------|-------------------|------|
+| POST   | `/auth/`       | `{username, password, tipo_id}`            | `201` message     | —    |
+| POST   | `/auth/token`  | FormData: `username, password, tipo_id`    | `{access_token, token_type}` | — |
+
+### Clubes (`/clubes`)
+
+| Método | Rota                     | Body / Params       | Response            | Auth  | Status Codes     | Cache                              |
+|--------|--------------------------|---------------------|---------------------|-------|------------------|------------------------------------|
+| POST   | `/clubes`                | `ClubeCreate`       | `ClubeResponse`     | JWT   | 200              | invalidate `stats`, `clubes:`      |
+| GET    | `/clubes`                | —                   | `[ClubeResponse]`   | JWT   | 200              | `clubes:list` TTL 30 s             |
+| PUT    | `/clubes/{id}`           | `ClubeCreate`       | `ClubeResponse`     | JWT   | 200, 404         | invalidate `stats`, `clubes:`      |
+| DELETE | `/clubes/{id}`           | —                   | —                   | JWT   | 204, 404         | invalidate `stats`, `clubes:`      |
+| POST   | `/clubes/{id}/ingressar` | —                   | `IngressarResponse` | JWT   | 201, 404, 409    | —                                  |
+
+### Utilizadores (`/utilizadores`)
+
+| Método | Rota                  | Body / Params       | Response               | Auth | Status Codes | Cache                                        |
+|--------|-----------------------|---------------------|------------------------|------|--------------|----------------------------------------------|
+| GET    | `/utilizadores`       | —                   | `[UtilizadorResponse]` | JWT  | 200          | `utilizadores:list` TTL 30 s                 |
+| PUT    | `/utilizadores/{id}`  | `UtilizadorCreate`  | `UtilizadorResponse`   | JWT  | 200, 404     | invalidate `stats`, `statstpuser`            |
+| DELETE | `/utilizadores/{id}`  | —                   | —                      | JWT  | 204, 404     | invalidate `stats`, `statstpuser`, `registrations:` |
+
+### Tipos de Utilizador (`/tipouser`)
+
+| Método | Rota              | Body / Params    | Response             | Auth | Status Codes | Cache                                         |
+|--------|--------------------|------------------|----------------------|------|--------------|-----------------------------------------------|
+| POST   | `/tipouser`        | `TipoUserCreate` | `TipoUserResponse`  | JWT  | 200          | invalidate `stats`, `statstpuser`, `tipouser:` |
+| GET    | `/tipouser`        | —                | `[TipoUserResponse]` | —    | 200          | `tipouser:list` TTL 120 s                     |
+| PUT    | `/tipouser/{id}`   | `TipoUserCreate` | `TipoUserResponse`  | JWT  | 200, 404     | invalidate `stats`, `statstpuser`, `tipouser:` |
+| DELETE | `/tipouser/{id}`   | —                | —                    | JWT  | 204, 404     | invalidate `stats`, `statstpuser`, `tipouser:` |
+
+### Mapas (`/mapas`)
+
+| Método | Rota           | Body / Params | Response          | Auth | Status Codes | Cache                          |
+|--------|----------------|---------------|-------------------|------|--------------|--------------------------------|
+| POST   | `/mapas`       | `MapaCreate`  | `MapaResponse`    | JWT  | 200, 404     | invalidate `stats`, `mapas:`   |
+| GET    | `/mapas`       | —             | `[MapaResponse]`  | JWT  | 200          | `mapas:list` TTL 60 s          |
+| PUT    | `/mapas/{id}`  | `MapaCreate`  | `MapaResponse`    | JWT  | 200, 404     | invalidate `stats`, `mapas:`   |
+| DELETE | `/mapas/{id}`  | —             | message           | JWT  | 200, 404     | invalidate `stats`, `mapas:`   |
+
+### Estatísticas
+
+| Método | Rota             | Response                                        | Auth | Cache                          |
+|--------|-------------------|-------------------------------------------------|------|--------------------------------|
+| GET    | `/stats`          | `{clubes, utilizadores, tipousers, mapas}`      | —    | `stats` TTL 60 s               |
+| GET    | `/statstpuser`    | `{tipo_descricao: count, ...}`                  | JWT  | `statstpuser` TTL 60 s         |
+| GET    | `/registrations`  | `[{month: str, count: int}]` (12 meses)        | JWT  | `registrations:{year}` TTL 300 s |
+
+</details>
+
+<details>
+<summary><strong>Pydantic Schemas (Contratos)</strong></summary>
+
+```python
+# Request
+class ClubeCreate(BaseModel):
+    nome: str
+    email: str | None = None
+    telefone: str | None = None
+    localidade: str | None = None
+    evento_at: Optional[date] = None
+
+class UtilizadorCreate(BaseModel):
+    username: str
+    password: str
+    tipo_id: int
+
+class TipoUserCreate(BaseModel):
+    descricao: str
+
+class MapaCreate(BaseModel):
+    descricao: str | None = None
+    latitude: float
+    longitude: float
+    clube_id: int
+
+# Response
+class ClubeResponse(ClubeCreate):        # herda campos + id
+    id: int
+
+class UtilizadorResponse(BaseModel):      # inclui nested TipoUserResponse
+    id: int
+    username: str
+    tipo: TipoUserResponse
+    created_at: datetime
+
+class MapaResponse(BaseModel):
+    id: int
+    descricao: str | None = None
+    latitude: float
+    longitude: float
+    clube_id: int
+
+class IngressarResponse(BaseModel):
+    mensagem: str
+    clube_id: int
+    clube_nome: str
+    inscrito_em: datetime
+```
+
+</details>
+
+<details>
+<summary><strong>Sequence Diagrams</strong></summary>
 
 ### Autenticação (Login + Acesso Protegido)
 
@@ -373,140 +626,25 @@ sequenceDiagram
     F->>F: Chart.js render (line + doughnut)
 ```
 
-<img width="1000" height="500" alt="ManueliClube" src="nuxt-app/assets/images/DashboardManuel.PNG" />
+</details>
 
----
+<details>
+<summary><strong>Testes — Código Completo</strong></summary>
 
-## Endpoints da API
-
-### Auth (`/auth`)
-
-| Método | Rota           | Body / Params                              | Response          | Auth |
-|--------|----------------|--------------------------------------------|-------------------|------|
-| POST   | `/auth/`       | `{username, password, tipo_id}`            | `201` message     | —    |
-| POST   | `/auth/token`  | FormData: `username, password, tipo_id`    | `{access_token, token_type}` | — |
-
-<img width="1000" height="500" alt="ManueliClube" src="nuxt-app/assets/images/ManuelLogin.PNG" />
-
-### Clubes (`/clubes`)
-
-| Método | Rota                     | Body / Params       | Response            | Auth  | Status Codes     | Cache                              |
-|--------|--------------------------|---------------------|---------------------|-------|------------------|------------------------------------|
-| POST   | `/clubes`                | `ClubeCreate`       | `ClubeResponse`     | JWT   | 200              | invalidate `stats`, `clubes:`      |
-| GET    | `/clubes`                | —                   | `[ClubeResponse]`   | JWT   | 200              | `clubes:list` TTL 30 s             |
-| PUT    | `/clubes/{id}`           | `ClubeCreate`       | `ClubeResponse`     | JWT   | 200, 404         | invalidate `stats`, `clubes:`      |
-| DELETE | `/clubes/{id}`           | —                   | —                   | JWT   | 204, 404         | invalidate `stats`, `clubes:`      |
-| POST   | `/clubes/{id}/ingressar` | —                   | `IngressarResponse` | JWT   | 201, 404, 409    | —                                  |
-
-<img width="1000" height="500" alt="ManueliClube" src="nuxt-app/assets/images/ManuelLogin.PNG" />
-
-### Utilizadores (`/utilizadores`)
-
-| Método | Rota                  | Body / Params       | Response               | Auth | Status Codes | Cache                                        |
-|--------|-----------------------|---------------------|------------------------|------|--------------|----------------------------------------------|
-| GET    | `/utilizadores`       | —                   | `[UtilizadorResponse]` | JWT  | 200          | `utilizadores:list` TTL 30 s                 |
-| PUT    | `/utilizadores/{id}`  | `UtilizadorCreate`  | `UtilizadorResponse`   | JWT  | 200, 404     | invalidate `stats`, `statstpuser`            |
-| DELETE | `/utilizadores/{id}`  | —                   | —                      | JWT  | 204, 404     | invalidate `stats`, `statstpuser`, `registrations:` |
-
-### Tipos de Utilizador (`/tipouser`)
-
-| Método | Rota              | Body / Params    | Response             | Auth | Status Codes | Cache                                         |
-|--------|--------------------|------------------|----------------------|------|--------------|-----------------------------------------------|
-| POST   | `/tipouser`        | `TipoUserCreate` | `TipoUserResponse`  | JWT  | 200          | invalidate `stats`, `statstpuser`, `tipouser:` |
-| GET    | `/tipouser`        | —                | `[TipoUserResponse]` | —    | 200          | `tipouser:list` TTL 120 s                     |
-| PUT    | `/tipouser/{id}`   | `TipoUserCreate` | `TipoUserResponse`  | JWT  | 200, 404     | invalidate `stats`, `statstpuser`, `tipouser:` |
-| DELETE | `/tipouser/{id}`   | —                | —                    | JWT  | 204, 404     | invalidate `stats`, `statstpuser`, `tipouser:` |
-
-### Mapas (`/mapas`)
-
-| Método | Rota           | Body / Params | Response          | Auth | Status Codes | Cache                          |
-|--------|----------------|---------------|-------------------|------|--------------|--------------------------------|
-| POST   | `/mapas`       | `MapaCreate`  | `MapaResponse`    | JWT  | 200, 404     | invalidate `stats`, `mapas:`   |
-| GET    | `/mapas`       | —             | `[MapaResponse]`  | JWT  | 200          | `mapas:list` TTL 60 s          |
-| PUT    | `/mapas/{id}`  | `MapaCreate`  | `MapaResponse`    | JWT  | 200, 404     | invalidate `stats`, `mapas:`   |
-| DELETE | `/mapas/{id}`  | —             | message           | JWT  | 200, 404     | invalidate `stats`, `mapas:`   |
-
-<img width="1000" height="500" alt="ManueliClube" src="nuxt-app/assets/images/ManuelMapas.PNG" />
-
-### Estatísticas
-
-| Método | Rota             | Response                                        | Auth | Cache                          |
-|--------|-------------------|-------------------------------------------------|------|--------------------------------|
-| GET    | `/stats`          | `{clubes, utilizadores, tipousers, mapas}`      | —    | `stats` TTL 60 s               |
-| GET    | `/statstpuser`    | `{tipo_descricao: count, ...}`                  | JWT  | `statstpuser` TTL 60 s         |
-| GET    | `/registrations`  | `[{month: str, count: int}]` (12 meses)        | JWT  | `registrations:{year}` TTL 300 s |
-
-
----
-
-## Pydantic Schemas (Contratos)
-
-```python
-# Request
-class ClubeCreate(BaseModel):
-    nome: str
-    email: str | None = None
-    telefone: str | None = None
-    localidade: str | None = None
-    evento_at: Optional[date] = None
-
-class UtilizadorCreate(BaseModel):
-    username: str
-    password: str
-    tipo_id: int
-
-class TipoUserCreate(BaseModel):
-    descricao: str
-
-class MapaCreate(BaseModel):
-    descricao: str | None = None
-    latitude: float
-    longitude: float
-    clube_id: int
-
-# Response
-class ClubeResponse(ClubeCreate):        # herda campos + id
-    id: int
-
-class UtilizadorResponse(BaseModel):      # inclui nested TipoUserResponse
-    id: int
-    username: str
-    tipo: TipoUserResponse
-    created_at: datetime
-
-class MapaResponse(BaseModel):            # resposta de mapa
-    id: int
-    descricao: str | None = None
-    latitude: float
-    longitude: float
-    clube_id: int
-
-class IngressarResponse(BaseModel):       # resposta de inscrição
-    mensagem: str
-    clube_id: int
-    clube_nome: str
-    inscrito_em: datetime
-```
-
----
-
-## Testes
-
-### Estrutura de Testes (pytest + httpx)
+### Estrutura
 
 ```
-api/
-├── tests/
-│   ├── conftest.py          # Fixtures: TestClient, BD em memória, token helper
-│   ├── test_auth.py         # Registo, login, token inválido
-│   ├── test_clubes.py       # CRUD clubes + inscrição + duplicação
-│   ├── test_utilizadores.py # CRUD utilizadores
-│   ├── test_tipouser.py     # CRUD tipos
-│   ├── test_mapas.py        # CRUD mapas
-│   └── test_stats.py        # Endpoints de estatísticas
+api/tests/
+├── conftest.py          # Fixtures: TestClient, BD em memória, token helper
+├── test_auth.py         # Registo, login, token inválido
+├── test_clubes.py       # CRUD clubes + inscrição + duplicação
+├── test_utilizadores.py # CRUD utilizadores
+├── test_tipouser.py     # CRUD tipos
+├── test_mapas.py        # CRUD mapas
+└── test_stats.py        # Endpoints de estatísticas
 ```
 
-### `conftest.py` — Fixtures
+### `conftest.py`
 
 ```python
 import os
@@ -525,7 +663,7 @@ from sqlalchemy.orm import sessionmaker
 from database import Base, get_db
 import auth, database
 
-database.init_db = lambda: None  # impedir ligação à BD de produção
+database.init_db = lambda: None
 
 from main import app
 from models import TipoUserModel
@@ -537,13 +675,11 @@ SQLALCHEMY_TEST_URL = "sqlite:///./test.db"
 engine = create_engine(SQLALCHEMY_TEST_URL, connect_args={"check_same_thread": False})
 TestSession = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-
 @pytest.fixture(autouse=True)
 def setup_db():
     Base.metadata.create_all(bind=engine)
     yield
     Base.metadata.drop_all(bind=engine)
-
 
 @pytest.fixture()
 def db():
@@ -552,7 +688,6 @@ def db():
         yield session
     finally:
         session.close()
-
 
 @pytest.fixture()
 def client(db):
@@ -564,57 +699,35 @@ def client(db):
         yield c
     app.dependency_overrides.clear()
 
-
 def _seed_tipo(db, descricao="admin"):
-    """Insere um TipoUser diretamente na BD."""
     tipo = TipoUserModel(descricao=descricao)
     db.add(tipo)
     db.commit()
     db.refresh(tipo)
     return tipo
 
-
 @pytest.fixture()
 def tipo(db):
-    """Fixture que insere um TipoUser 'admin'."""
     return _seed_tipo(db)
-
 
 @pytest.fixture()
 def auth_headers(client, db):
-    """Regista utilizador e devolve headers com JWT."""
     tipo = _seed_tipo(db)
-    client.post("/auth/", json={
-        "username": "testuser",
-        "password": "Str0ng!Pass",
-        "tipo_id": tipo.id,
-    })
-    resp = client.post("/auth/token", data={
-        "username": "testuser",
-        "password": "Str0ng!Pass",
-        "tipo_id": str(tipo.id),
-    })
-    assert resp.status_code == 200, f"Login failed: {resp.text}"
+    client.post("/auth/", json={"username": "testuser", "password": "Str0ng!Pass", "tipo_id": tipo.id})
+    resp = client.post("/auth/token", data={"username": "testuser", "password": "Str0ng!Pass", "tipo_id": str(tipo.id)})
     token = resp.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 ```
 
-### `test_auth.py` — Autenticação
+### `test_auth.py`
 
 ```python
 from tests.conftest import _seed_tipo
 
-
 def test_register_success(client, db):
     _seed_tipo(db)
-    resp = client.post("/auth/", json={
-        "username": "newuser",
-        "password": "Str0ng!Pass",
-        "tipo_id": 1,
-    })
+    resp = client.post("/auth/", json={"username": "newuser", "password": "Str0ng!Pass", "tipo_id": 1})
     assert resp.status_code == 201
-    assert resp.json()["message"] == "Utilizador Criado com Sucesso"
-
 
 def test_register_duplicate_username(client, db):
     _seed_tipo(db)
@@ -622,157 +735,64 @@ def test_register_duplicate_username(client, db):
     resp = client.post("/auth/", json={"username": "dup", "password": "Pass2!abc", "tipo_id": 1})
     assert resp.status_code == 400
 
-
 def test_login_returns_jwt(client, db):
     _seed_tipo(db)
-    client.post("/auth/", json={
-        "username": "testuser",
-        "password": "Str0ng!Pass",
-        "tipo_id": 1,
-    })
-    resp = client.post("/auth/token", data={
-        "username": "testuser",
-        "password": "Str0ng!Pass",
-        "tipo_id": "1",
-    })
+    client.post("/auth/", json={"username": "testuser", "password": "Str0ng!Pass", "tipo_id": 1})
+    resp = client.post("/auth/token", data={"username": "testuser", "password": "Str0ng!Pass", "tipo_id": "1"})
     assert resp.status_code == 200
-    body = resp.json()
-    assert "access_token" in body
-    assert body["token_type"] == "bearer"
-
+    assert "access_token" in resp.json()
 
 def test_login_wrong_password(client, db):
     _seed_tipo(db)
-    client.post("/auth/", json={
-        "username": "testuser",
-        "password": "Str0ng!Pass",
-        "tipo_id": 1,
-    })
-    resp = client.post("/auth/token", data={
-        "username": "testuser",
-        "password": "wrong",
-        "tipo_id": "1",
-    })
+    client.post("/auth/", json={"username": "testuser", "password": "Str0ng!Pass", "tipo_id": 1})
+    resp = client.post("/auth/token", data={"username": "testuser", "password": "wrong", "tipo_id": "1"})
     assert resp.status_code == 401
-
 
 def test_protected_route_without_token(client):
     resp = client.get("/clubes")
     assert resp.status_code == 401
 ```
 
-### `test_clubes.py` — CRUD + Inscrição
+### `test_clubes.py`
 
 ```python
 def test_create_clube(client, auth_headers):
-    resp = client.post("/clubes", json={
-        "nome": "Clube Teste",
-        "email": "teste@clube.pt",
-        "telefone": "912345678",
-        "localidade": "Lisboa",
-        "evento_at": "2026-06-15",
-    }, headers=auth_headers)
+    resp = client.post("/clubes", json={"nome": "Clube Teste", "email": "teste@clube.pt", "telefone": "912345678", "localidade": "Lisboa", "evento_at": "2026-06-15"}, headers=auth_headers)
     assert resp.status_code == 200
-    data = resp.json()
-    assert data["nome"] == "Clube Teste"
-    assert data["id"] is not None
-
+    assert resp.json()["nome"] == "Clube Teste"
 
 def test_list_clubes(client, auth_headers):
     client.post("/clubes", json={"nome": "C1"}, headers=auth_headers)
     client.post("/clubes", json={"nome": "C2"}, headers=auth_headers)
     resp = client.get("/clubes", headers=auth_headers)
-    assert resp.status_code == 200
     assert len(resp.json()) == 2
-
 
 def test_update_clube(client, auth_headers):
     create = client.post("/clubes", json={"nome": "Old"}, headers=auth_headers)
-    cid = create.json()["id"]
-    resp = client.put(f"/clubes/{cid}", json={"nome": "New"}, headers=auth_headers)
-    assert resp.status_code == 200
+    resp = client.put(f"/clubes/{create.json()['id']}", json={"nome": "New"}, headers=auth_headers)
     assert resp.json()["nome"] == "New"
-
 
 def test_delete_clube(client, auth_headers):
     create = client.post("/clubes", json={"nome": "ToDelete"}, headers=auth_headers)
-    cid = create.json()["id"]
-    resp = client.delete(f"/clubes/{cid}", headers=auth_headers)
+    resp = client.delete(f"/clubes/{create.json()['id']}", headers=auth_headers)
     assert resp.status_code == 204
 
-
 def test_delete_clube_404(client, auth_headers):
-    resp = client.delete("/clubes/9999", headers=auth_headers)
-    assert resp.status_code == 404
-
+    assert client.delete("/clubes/9999", headers=auth_headers).status_code == 404
 
 def test_ingressar_clube(client, auth_headers):
     create = client.post("/clubes", json={"nome": "Ingresso"}, headers=auth_headers)
-    cid = create.json()["id"]
-    resp = client.post(f"/clubes/{cid}/ingressar", headers=auth_headers)
+    resp = client.post(f"/clubes/{create.json()['id']}/ingressar", headers=auth_headers)
     assert resp.status_code == 201
-    data = resp.json()
-    assert data["clube_id"] == cid
-    assert "inscrito_em" in data
-
 
 def test_ingressar_duplicate_409(client, auth_headers):
     create = client.post("/clubes", json={"nome": "Dup"}, headers=auth_headers)
     cid = create.json()["id"]
     client.post(f"/clubes/{cid}/ingressar", headers=auth_headers)
-    resp = client.post(f"/clubes/{cid}/ingressar", headers=auth_headers)
-    assert resp.status_code == 409
-
+    assert client.post(f"/clubes/{cid}/ingressar", headers=auth_headers).status_code == 409
 
 def test_ingressar_clube_inexistente_404(client, auth_headers):
-    resp = client.post("/clubes/9999/ingressar", headers=auth_headers)
-    assert resp.status_code == 404
-```
-
-### Executar Testes
-
-```bash
-cd api
-pip install pytest httpx
-pytest tests/ -v --tb=short
-```
-
-```
-tests/test_auth.py::test_register_success               PASSED
-tests/test_auth.py::test_register_duplicate_username     PASSED
-tests/test_auth.py::test_login_returns_jwt               PASSED
-tests/test_auth.py::test_login_wrong_password            PASSED
-tests/test_auth.py::test_protected_route_without_token   PASSED
-tests/test_clubes.py::test_create_clube                  PASSED
-tests/test_clubes.py::test_list_clubes                   PASSED
-tests/test_clubes.py::test_update_clube                  PASSED
-tests/test_clubes.py::test_delete_clube                  PASSED
-tests/test_clubes.py::test_delete_clube_404              PASSED
-tests/test_clubes.py::test_ingressar_clube               PASSED
-tests/test_clubes.py::test_ingressar_duplicate_409       PASSED
-tests/test_clubes.py::test_ingressar_clube_inexistente_404 PASSED
-tests/test_utilizadores.py::test_list_utilizadores       PASSED
-tests/test_utilizadores.py::test_update_utilizador       PASSED
-tests/test_utilizadores.py::test_delete_utilizador       PASSED
-tests/test_utilizadores.py::test_delete_utilizador_404   PASSED
-tests/test_tipouser.py::test_create_tipo_user            PASSED
-tests/test_tipouser.py::test_list_tipo_user              PASSED
-tests/test_tipouser.py::test_update_tipo_user            PASSED
-tests/test_tipouser.py::test_update_tipo_user_404        PASSED
-tests/test_tipouser.py::test_delete_tipo_user            PASSED
-tests/test_tipouser.py::test_delete_tipo_user_404        PASSED
-tests/test_mapas.py::test_create_mapa                    PASSED
-tests/test_mapas.py::test_create_mapa_clube_inexistente  PASSED
-tests/test_mapas.py::test_list_mapas                     PASSED
-tests/test_mapas.py::test_update_mapa                    PASSED
-tests/test_mapas.py::test_update_mapa_404                PASSED
-tests/test_mapas.py::test_delete_mapa                    PASSED
-tests/test_mapas.py::test_delete_mapa_404                PASSED
-tests/test_stats.py::test_stats_public                   PASSED
-tests/test_stats.py::test_statstpuser                    PASSED
-tests/test_stats.py::test_registrations                  PASSED
-tests/test_stats.py::test_statstpuser_no_auth            PASSED
-tests/test_stats.py::test_registrations_no_auth          PASSED
+    assert client.post("/clubes/9999/ingressar", headers=auth_headers).status_code == 404
 ```
 
 ### Cobertura
@@ -789,333 +809,63 @@ pytest tests/ --cov=. --cov-report=term-missing
 | `database.py`| ≥ 80%          |
 | `cache.py`   | ≥ 90%          |
 
----
+</details>
 
-## Architecture Decision Records (ADR)
+<details>
+<summary><strong>Architecture Decision Records (ADR)</strong></summary>
 
 ### ADR-001: FastAPI em vez de Django REST / Flask
 
 **Status:** Aceite  
-**Contexto:** O sistema precisa de uma API REST com validação de schemas, documentação automática e suporte assíncrono. Django REST Framework traz overhead de um ORM opinado e admin desnecessário. Flask requer muitos plugins adicionais.  
-**Decisão:** Usar FastAPI com Pydantic para validação e SQLAlchemy como ORM independente.  
-**Consequências:**
-- (+) Documentação OpenAPI gerada automaticamente (`/docs`)
-- (+) Validação request/response via Pydantic com type hints nativos
-- (+) Dependency injection nativo (`Depends()`) para DB sessions e auth
-- (+) Performance superior (Starlette + Uvicorn ASGI)
-- (−) Ecossistema mais pequeno que Django (menos packages prontos)
-- (−) Sem admin panel built-in
+**Decisão:** FastAPI com Pydantic + SQLAlchemy — documentação OpenAPI automática, validação nativa, DI com `Depends()`, performance ASGI.
 
-### ADR-002: Argon2 em vez de bcrypt para hashing de passwords
+### ADR-002: Argon2 em vez de bcrypt
 
 **Status:** Aceite  
-**Contexto:** O sistema armazena passwords de utilizadores. bcrypt é o standard de facto, mas tem limitações conhecidas (truncagem a 72 bytes, sem resistência a side-channel em GPUs).  
-**Decisão:** Usar Argon2id via `passlib[argon2]` + `argon2_cffi`.  
-**Consequências:**
-- (+) Vencedor da Password Hashing Competition (2015) — resistente a GPU/ASIC/side-channel
-- (+) Parâmetros configuráveis: memory cost, time cost, parallelism
-- (+) `passlib.CryptContext` permite migração transparente de algoritmos (`deprecated="auto"`)
-- (−) Requer `argon2_cffi` como dependência nativa (compilação C)
-- (−) Ligeiramente mais lento que bcrypt por default (por design — é a feature)
+**Decisão:** Argon2id via `passlib[argon2]` — vencedor da Password Hashing Competition, resistente a GPU/ASIC, parâmetros configuráveis.
 
-### ADR-003: JWT via Bearer token (Authorization header)
+### ADR-003: JWT via Bearer token
 
 **Status:** Aceite  
-**Contexto:** A arquitetura é SPA + API separada. O token JWT precisa de ser persistido no cliente entre requests. O FastAPI fornece `OAuth2PasswordBearer` como mecanismo nativo para autenticação via header `Authorization: Bearer <token>`, com integração automática no Swagger UI (`/docs`).  
-**Decisão:** JWT transportado no header `Authorization: Bearer <token>`. O login devolve JSON `{access_token, token_type}` e o frontend armazena o token, enviando-o explicitamente em cada request protegido. Sem endpoint de logout — o frontend descarta o token localmente.
-
-**Implementação:**
+**Decisão:** JWT no header `Authorization: Bearer <token>`. Login devolve `{access_token, token_type}`, frontend gere armazenamento. Stateless, compatível com `OAuth2PasswordBearer` do FastAPI.
 
 ```python
-# auth.py — login response
-@router.post("/token", response_model=Token)
-async def login(
-    form_data: Annotated[OAuth2PasswordRequestFormWithTipo, Depends()],
-    db: db_dependency,
-):
-    user = authenticate_user(db, form_data.username, form_data.password, form_data.tipo_id)
-    if not user:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    token = create_access_token(user, timedelta(minutes=30))
-    return {"access_token": token, "token_type": "bearer"}
-
-# auth.py — get_current_user extrai do header Authorization
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        user_id: int = payload.get("id")
-        tipo_id: int = payload.get("tipo_id")
-        if username is None or user_id is None:
-            raise HTTPException(status_code=401, detail="Invalid token")
-        return {"username": username, "id": user_id, "tipo_id": tipo_id}
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    return {"username": payload.get("sub"), "id": payload.get("id"), "tipo_id": payload.get("tipo_id")}
 ```
 
-```javascript
-// Frontend — login
-const resp = await fetch(`${API}/auth/token`, {
-  method: 'POST',
-  body: formData,
-})
-const { access_token } = await resp.json()
-
-// Pedidos protegidos — token enviado no header
-const clubes = await fetch(`${API}/clubes`, {
-  headers: { 'Authorization': `Bearer ${access_token}` }
-})
-
-// Logout — descartar token no frontend
-token.value = null
-navigateTo('/login')
-```
-
-**Consequências:**
-- (+) Compatível com `OAuth2PasswordBearer` nativo do FastAPI — integração automática com Swagger UI (`/docs`)
-- (+) Stateless mantido — o servidor não guarda estado de sessão
-- (+) Simples de implementar — sem configuração de cookies cross-origin
-- (+) CORS simplificado — não requer `allow_credentials=True` nem origins explícitas
-- (−) Token acessível via JavaScript — vulnerável a XSS se houver injection
-- (−) Frontend tem de gerir manualmente o armazenamento e envio do token
-- (−) Token não revogável antes do `exp` (sem blacklist)
-- (−) Sem refresh token — re-login após 30 min
-
-### ADR-004: UniqueConstraint na tabela de inscrição (membro_clube)
+### ADR-004: UniqueConstraint em membro_clube
 
 **Status:** Aceite  
-**Contexto:** Utilizadores podem inscrever-se em clubes. Sem constraint, o mesmo utilizador pode inscrever-se N vezes no mesmo clube (bugs de UI, double-click, replay de requests).  
-**Decisão:** `UniqueConstraint("utilizador_id", "clube_id")` a nível de BD + catch de `IntegrityError` na API com rollback e HTTP 409.  
-**Consequências:**
-- (+) Integridade garantida a nível de BD — impossível bypass via SQL direto ou race conditions
-- (+) A API trata o erro graciosamente com mensagem localizada
-- (+) Mais robusto que validação apenas em application layer (que sofre de TOCTOU)
-- (−) Requer `try/except IntegrityError` + `db.rollback()` explícito no endpoint
+**Decisão:** `UniqueConstraint("utilizador_id", "clube_id")` a nível de BD + catch `IntegrityError` → HTTP 409. Impossível bypass via SQL direto ou race conditions.
 
-```python
-# Implementação do padrão
-try:
-    db.commit()
-except IntegrityError:
-    db.rollback()
-    raise HTTPException(status_code=409, detail=f"Já está inscrito no clube '{clube.nome}'")
-```
-
-### ADR-005: SSR (Nuxt) com `<ClientOnly>` para componentes DOM-dependent
+### ADR-005: SSR (Nuxt) com `<ClientOnly>`
 
 **Status:** Aceite  
-**Contexto:** O Nuxt 4 usa SSR por default para SEO e performance. Mas bibliotecas como FullCalendar e Leaflet manipulam o DOM diretamente e falham em ambiente Node.js (sem `window`/`document`).  
-**Decisão:** Usar `<ClientOnly>` wrapper do Nuxt para componentes incompatíveis com SSR, com skeleton de fallback.  
-**Consequências:**
-- (+) SSR funciona para páginas estáticas (index, aboutus, login) — melhor First Contentful Paint
-- (+) Componentes client-only (calendar, maps) renderizam apenas no browser
-- (+) Skeleton mantém layout estável durante hidratação (evita CLS)
-- (−) Conteúdo client-only invisível para crawlers sem JavaScript
-- (−) Ligeiro flash durante hidratação em conexões lentas
+**Decisão:** SSR por default para SEO. FullCalendar e Leaflet renderizados apenas client-side via `<ClientOnly>` com skeleton fallback.
 
-### ADR-006: CORS com wildcard origin
-
-**Status:** Aceite (atualizado por ADR-003)  
-**Contexto:** Com a adoção de Bearer tokens no header `Authorization` (ADR-003), o browser não precisa de enviar cookies cross-origin. Isto permite usar `allow_origins=["*"]` sem restrições, já que não é necessário `allow_credentials=True`.  
-**Decisão:** `allow_origins=["*"]` com `allow_credentials=False` em dev. Em produção, restringir para o domínio real.  
-**Consequências:**
-- (+) Configuração simples — qualquer origin pode fazer requests à API em dev
-- (+) Sem necessidade de listar origins explicitamente durante desenvolvimento
-- (+) Compatível com qualquer frontend sem configuração adicional
-- (−) Em produção, deve-se restringir `allow_origins` ao domínio real para reduzir superfície de ataque
-
-```python
-# Configuração atual (dev)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-```
-
-### ADR-007: Monólito modular em vez de microserviços
+### ADR-006: CORS wildcard em dev
 
 **Status:** Aceite  
-**Contexto:** O projeto é desenvolvido solo. A complexidade operacional de microserviços (deploy, networking, service discovery) não se justifica.  
-**Decisão:** Monólito com separação clara em módulos (`main.py`, `auth.py`, `models.py`, `database.py`, `cache.py`) e repositório único (monorepo).  
-**Consequências:**
-- (+) Deploy simples — um processo `uvicorn` serve toda a API
-- (+) Sem latência de rede entre serviços
-- (+) Refactoring fácil — tudo no mesmo codebase
-- (+) Frontend e backend no mesmo repo — versionamento conjunto
-- (−) Escalabilidade limitada a vertical (mitigado pelo ASGI Uvicorn com workers)
-- (−) Se o projeto crescer significativamente, pode precisar de decomposição
+**Decisão:** `allow_origins=["*"]` com `allow_credentials=False` em dev (Bearer tokens não precisam de cookies). Em produção, restringir ao domínio real.
 
-### ADR-008: Cache in-memory com TTL e invalidação por prefixo
+### ADR-007: Monólito modular
 
 **Status:** Aceite  
-**Contexto:** Os endpoints de estatísticas (`/stats`, `/statstpuser`, `/registrations`) e listagens (`/clubes`, `/tipouser`, `/mapas`) executam queries agregadas a cada request. Para um projeto single-instance, Redis seria overhead operacional desnecessário.  
-**Decisão:** Cache in-memory com `dict` Python em `cache.py`. Três funções: `cache_get(key)`, `cache_set(key, value, ttl)`, `cache_invalidate(*prefixes)`. TTL calculado com `time.monotonic()`. Invalidação automática em todos os endpoints de escrita (`POST`/`PUT`/`DELETE`), usando prefixos de key para limpar caches relacionadas.
+**Decisão:** Monorepo com módulos separados (`main.py`, `auth.py`, `models.py`, `database.py`, `cache.py`). Deploy simples, sem overhead de microserviços.
 
-**Implementação:**
+### ADR-008: Cache in-memory com TTL
 
-```python
-# cache.py
-import time
-from typing import Any
+**Status:** Aceite  
+**Decisão:** `dict` Python com `time.monotonic()`. Zero dependências externas, latência ~0 para cache hits, invalidação por prefixo em writes. Redis evitado por overhead operacional desnecessário para single-instance.
 
-_cache: dict[str, tuple[float, Any]] = {}
+</details>
 
-def cache_get(key: str) -> Any | None:
-    entry = _cache.get(key)
-    if entry is None:
-        return None
-    expires_at, value = entry
-    if time.monotonic() > expires_at:
-        del _cache[key]
-        return None
-    return value
-
-def cache_set(key: str, value: Any, ttl: int) -> None:
-    _cache[key] = (time.monotonic() + ttl, value)
-
-def cache_invalidate(*prefixes: str) -> None:
-    keys_to_delete = [k for k in _cache if any(k.startswith(p) for p in prefixes)]
-    for k in keys_to_delete:
-        del _cache[k]
-```
-
-```python
-# Uso em main.py — exemplo GET /stats
-@app.get("/stats")
-def get_stats(db: Session = Depends(get_db)):
-    cached = cache_get("stats")
-    if cached is not None:
-        return cached
-    result = {
-        "clubes": db.query(ClubeModel).count(),
-        "utilizadores": db.query(UtilizadorModel).count(),
-        "tipousers": db.query(TipoUserModel).count(),
-        "mapas": db.query(MapaModel).count(),
-    }
-    cache_set("stats", result, ttl=60)
-    return result
-
-# Uso em main.py — exemplo POST /clubes (invalidação)
-db.commit()
-db.refresh(db_clube)
-cache_invalidate("stats", "clubes:")   # limpa stats e lista de clubes
-return db_clube
-```
-
-**Consequências:**
-- (+) Zero dependências externas — `dict` + `time.monotonic()` da stdlib
-- (+) Latência ~0 para cache hits — sem I/O de rede
-- (+) Invalidação precisa por prefixo — `cache_invalidate("stats", "clubes:")` limpa exatamente as keys afetadas
-- (+) Implementação transparente — endpoints mantêm a mesma interface HTTP
-- (−) Cache perdida ao reiniciar o processo (aceitável — cold start apenas)
-- (−) Não partilhada entre workers Uvicorn (adequado para single-worker dev/staging)
-- (−) Sem eviction policy — keys expiram passivamente no próximo `cache_get`
-
----
-
-## Estrutura do Projeto
-
-```
--Manueli-s-Clubes/
-├── README.md
-├── docker-compose.yml               # Orquestração: db + api + frontend
-├── package.json                     # deps globais (Bootstrap, Chart.js, Leaflet)
-│
-├── api/                             # Backend (FastAPI)
-│   ├── Dockerfile                   # python:3.11-slim → uvicorn :8000
-│   ├── app/
-│   │   ├── main.py                  # App factory, CRUD routes, stats, inscrições, cache integration
-│   │   ├── auth.py                  # Router /auth, JWT, Argon2
-│   │   ├── models.py                # ORM models + Pydantic schemas
-│   │   ├── database.py              # Engine, SessionLocal, get_db(), init_db()
-│   │   ├── cache.py                 # Cache in-memory: cache_get, cache_set, cache_invalidate
-│   │   └── requirements.txt
-│   └── tests/                       # pytest + httpx
-│       ├── __init__.py
-│       ├── conftest.py
-│       ├── test_auth.py
-│       ├── test_clubes.py
-│       ├── test_utilizadores.py
-│       ├── test_tipouser.py
-│       ├── test_mapas.py
-│       └── test_stats.py
-│
-└── nuxt-app/                        # Frontend (Nuxt 4)
-    ├── Dockerfile                   # node:20 → nuxt build + dev :3000
-    ├── nuxt.config.js
-    ├── package.json
-    ├── tsconfig.json
-    ├── app/
-    ├── components/
-    │   └── Header.vue               # Nav global
-    ├── pages/
-    │   ├── index.vue                # Landing (SSR) — stats públicas
-    │   ├── login.vue                # Auth — FormData → /auth/token
-    │   ├── dashboard.vue            # KPIs + Chart.js (line + doughnut)
-    │   ├── clubes.vue               # CRUD table + permissões por tipo_id
-    │   ├── mapas.vue                # Leaflet <ClientOnly> + CRUD pontos
-    │   ├── calendario.vue           # FullCalendar <ClientOnly> + ingressar
-    │   └── aboutus.vue              # Sobre nós — stats em tempo real
-    ├── assets/{css,js,images}/      # Bootstrap 5 (source + minified)
-    └── public/robots.txt
-```
-
----
-
-## Setup
-
-### Variáveis de Ambiente
-
-#### `api/.env` — Backend
-
-```env
-MYSQL_HOST=localhost
-MYSQL_PORT=5432
-MYSQL_USER=<user>
-MYSQL_PASSWORD=<password>
-MYSQL_DATABASE=clubes_db
-SECRET_KEY=<random-256-bit-hex>
-ALGORITHM=HS256
-```
-
-#### `.env` (raiz) — Docker Compose
-
-```env
-DB_USER=<user>
-DB_PASSWORD=<password>
-DB_NAME=clubes_db
-```
-
-> As variáveis `DB_USER`, `DB_PASSWORD` e `DB_NAME` são usadas pelo `docker-compose.yml` para configurar o PostgreSQL e injetadas no serviço `api` como `MYSQL_*`.
-
-### Backend (local)
-
-```bash
-cd api/app
-pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
-# → http://localhost:8000/docs (Swagger UI)
-```
-
-### Frontend (local)
-
-```bash
-cd nuxt-app
-npm install
-npm run dev
-# → http://localhost:3000
-```
-
----
-
-## Docker
-
-O projeto inclui `docker-compose.yml` com 3 serviços e Dockerfiles dedicados para API e Frontend.
+<details>
+<summary><strong>Docker — Configuração Completa</strong></summary>
 
 ### Serviços
 
@@ -1129,7 +879,6 @@ O projeto inclui `docker-compose.yml` com 3 serviços e Dockerfiles dedicados pa
 
 ```yaml
 services:
-
   db:
     image: postgres:15
     container_name: clubes_db
@@ -1171,8 +920,7 @@ volumes:
 
 ### Dockerfiles
 
-#### API (`api/Dockerfile`)
-
+**API** (`api/Dockerfile`):
 ```dockerfile
 FROM python:3.11-slim
 WORKDIR /app
@@ -1181,8 +929,7 @@ RUN pip install -r requirements.txt
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
-#### Frontend (`nuxt-app/Dockerfile`)
-
+**Frontend** (`nuxt-app/Dockerfile`):
 ```dockerfile
 FROM node:20
 WORKDIR /app
@@ -1193,27 +940,7 @@ RUN npm run build
 CMD ["npm", "run", "dev"]
 ```
 
-### Executar com Docker
-
-```bash
-# Criar ficheiro .env na raiz com DB_USER, DB_PASSWORD, DB_NAME
-# Criar ficheiro api/.env com MYSQL_*, SECRET_KEY, ALGORITHM
-
-docker compose up --build
-# → API:      http://localhost:8000/docs
-# → Frontend: http://localhost:3000
-# → DB:       localhost:5432
-```
-
-```bash
-# Parar e remover containers
-docker compose down
-
-# Parar e remover containers + volume de dados
-docker compose down -v
-```
-
-### Diagrama de Rede (Docker)
+### Diagrama de Rede
 
 ```mermaid
 graph LR
@@ -1228,6 +955,51 @@ graph LR
     Browser([Browser]) -->|:3000| FE
     Browser -->|:8000| API
 ```
+
+</details>
+
+<details>
+<summary><strong>Setup Local (sem Docker)</strong></summary>
+
+### Variáveis de Ambiente
+
+**`api/.env`** — Backend:
+```env
+MYSQL_HOST=localhost
+MYSQL_PORT=5432
+MYSQL_USER=<user>
+MYSQL_PASSWORD=<password>
+MYSQL_DATABASE=clubes_db
+SECRET_KEY=<random-256-bit-hex>
+ALGORITHM=HS256
+```
+
+**`.env`** (raiz) — Docker Compose:
+```env
+DB_USER=<user>
+DB_PASSWORD=<password>
+DB_NAME=clubes_db
+```
+
+### Backend
+
+```bash
+cd api/app
+pip install -r requirements.txt
+uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+# → http://localhost:8000/docs (Swagger UI)
+```
+
+### Frontend
+
+```bash
+cd nuxt-app
+npm install
+npm run dev
+# → http://localhost:3000
+```
+
+</details>
 
 ---
 
