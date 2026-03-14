@@ -66,7 +66,6 @@ C4Container
     Rel(auth_mod, db, "SQLAlchemy Session")
 ```
 
-<img width="1000" height="500" alt="ManueliClube" src="nuxt-app/assets/images/APIFast.PNG" />
 
 ### Nível 3 — Componentes (API)
 
@@ -242,8 +241,6 @@ sequenceDiagram
     F->>F: Armazena token + navigateTo("/dashboard")
 ```
 
-<img width="1000" height="500" alt="ManueliClube" src="nuxt-app/assets/images/ManuelLogin.PNG" />
-
 ```mermaid
 sequenceDiagram
     actor U as Utilizador
@@ -389,6 +386,8 @@ sequenceDiagram
 | POST   | `/auth/`       | `{username, password, tipo_id}`            | `201` message     | —    |
 | POST   | `/auth/token`  | FormData: `username, password, tipo_id`    | `{access_token, token_type}` | — |
 
+<img width="1000" height="500" alt="ManueliClube" src="nuxt-app/assets/images/ManuelLogin.PNG" />
+
 ### Clubes (`/clubes`)
 
 | Método | Rota                     | Body / Params       | Response            | Auth  | Status Codes     | Cache                              |
@@ -437,7 +436,6 @@ sequenceDiagram
 | GET    | `/statstpuser`    | `{tipo_descricao: count, ...}`                  | JWT  | `statstpuser` TTL 60 s         |
 | GET    | `/registrations`  | `[{month: str, count: int}]` (12 meses)        | JWT  | `registrations:{year}` TTL 300 s |
 
-<img width="1000" height="500" alt="ManueliClube" src="nuxt-app/assets/images/ManuelCalendario.PNG" />
 
 ---
 
