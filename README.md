@@ -66,7 +66,6 @@ C4Container
     Rel(auth_mod, db, "SQLAlchemy Session")
 ```
 
-<img width="1000" height="500" alt="ManueliClube" src="nuxt-app/assets/images/APIFast.PNG" />
 
 ### Nível 3 — Componentes (API)
 
