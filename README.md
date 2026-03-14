@@ -4,7 +4,6 @@ Plataforma web full-stack de gestão de clubes — **Nuxt 4** + **FastAPI** + **
 
 <img width="1000" height="500" alt="ManueliClube" src="https://github.com/user-attachments/assets/786aee57-cdbc-4be2-823b-51c221d7e4b8" />
 
----
 
 ## Tech Stack
 
@@ -67,6 +66,10 @@ C4Container
     Rel(auth_mod, db, "SQLAlchemy Session")
 ```
 
+<!-- 📸 SCREENSHOT: Swagger UI (/docs) — Documentação OpenAPI gerada automaticamente pelo FastAPI,
+     mostrando todos os endpoints agrupados (auth, clubes, utilizadores, tipouser, mapas, stats)
+     com schemas expandidos e botão "Try it out". -->
+
 ### Nível 3 — Componentes (API)
 
 ```mermaid
@@ -98,10 +101,10 @@ C4Component
 
 ```mermaid
 erDiagram
-    tipouser ||--o{ utilizador : "1:N"
-    utilizador ||--o{ membro_clube : "1:N"
-    clubes ||--o{ membro_clube : "1:N"
-    clubes ||--o{ mapas : "1:N"
+    tipouser ||--o{ utilizador : "1:N"}
+    utilizador ||--o{ membro_clube : "1:N"}
+    clubes ||--o{ membro_clube : "1:N"}
+    clubes ||--o{ mapas : "1:N"}
 
     tipouser {
         int id PK
@@ -239,7 +242,19 @@ sequenceDiagram
     end
 
     F->>F: Armazena token + navigateTo("/dashboard")
+```
 
+<!-- 📸 SCREENSHOT: Página Login (login.vue) — Layout split 50/50. Painel esquerdo com título serif
+     "Entre no seu universo" e branding em dourado. Painel direito com formulário centrado:
+     campo username com ícone, campo password com toggle de visibilidade, dropdown "Tipo de Utilizador"
+     (populado via API /tipouser), e botão submit com gradient dourado. Fundo escuro com efeitos glassmorphic. -->
+
+```mermaid
+sequenceDiagram
+    actor U as Utilizador
+    participant F as Nuxt Frontend
+    participant A as FastAPI /auth
+    participant DB as PostgreSQL
     Note over F,A: Pedidos subsequentes — header Authorization enviado pelo frontend
 
     F->>A: GET /clubes (Authorization: Bearer token)
@@ -317,6 +332,10 @@ sequenceDiagram
     C->>C: Swal.fire(response.mensagem)
 ```
 
+<!-- 📸 SCREENSHOT: Modal de inscrição no calendário — Painel lateral com barra de cor do clube no topo,
+     ícone 🏛️, nome do clube em fonte serif, informações de contacto (email, telefone, localidade),
+     e botão "Ingressar" com spinner de loading. Após sucesso, mostra mensagem verde "Inscrito com sucesso". -->
+
 ### Dashboard — Carregamento de Estatísticas (com cache)
 
 ```mermaid
@@ -366,6 +385,12 @@ sequenceDiagram
     F->>F: Chart.js render (line + doughnut)
 ```
 
+<!-- 📸 SCREENSHOT: Dashboard (dashboard.vue) — Sidebar à esquerda com navegação ativa em "Dashboard".
+     Três KPI cards no topo (Total de Clubes, Membros Ativos, Tipos de Utilizadores) com ícones e
+     barras de cor gradient. Abaixo, dois gráficos Chart.js lado a lado: gráfico de linha
+     "Crescimento de Utilizadores" (tendência mensal) e doughnut "Distribuição por Tipo de Utilizador"
+     com segmentos coloridos. Tema escuro com acentos dourados. -->
+
 ---
 
 ## Endpoints da API
@@ -386,6 +411,11 @@ sequenceDiagram
 | PUT    | `/clubes/{id}`           | `ClubeCreate`       | `ClubeResponse`     | JWT   | 200, 404         | invalidate `stats`, `clubes:`      |
 | DELETE | `/clubes/{id}`           | —                   | —                   | JWT   | 204, 404         | invalidate `stats`, `clubes:`      |
 | POST   | `/clubes/{id}/ingressar` | —                   | `IngressarResponse` | JWT   | 201, 404, 409    | —                                  |
+
+<!-- 📸 SCREENSHOT: Página Clubes (clubes.vue) — Formulário de criação com 4 campos (nome, email,
+     telefone, localidade) com ícones SVG e animação de focus line. Abaixo, tabela com clubes
+     registados com células editáveis inline, badges de ID e botões de ação (Guardar/Apagar).
+     Apenas admins veem o botão "Apagar" — utilizadores normais veem "Apenas admins". -->
 
 ### Utilizadores (`/utilizadores`)
 
@@ -413,6 +443,12 @@ sequenceDiagram
 | PUT    | `/mapas/{id}`  | `MapaCreate`  | `MapaResponse`    | JWT  | 200, 404     | invalidate `stats`, `mapas:`   |
 | DELETE | `/mapas/{id}`  | —             | message           | JWT  | 200, 404     | invalidate `stats`, `mapas:`   |
 
+<!-- 📸 SCREENSHOT: Página Mapas (mapas.vue) — Interface split em 3 painéis: painel esquerdo com
+     lista de clubes/pontos em tabs com badges de contagem; mapa Leaflet central com basemap escuro
+     (CartoDB dark_all) e marcadores SVG personalizados coloridos por clube; painel direito slide-in
+     com formulário "Registar localização" (dropdown de clube, descrição, latitude, longitude) e
+     botão "Escolher no mapa" que ativa cursor crosshair para colocar pontos por clique. -->
+
 ### Estatísticas
 
 | Método | Rota             | Response                                        | Auth | Cache                          |
@@ -420,6 +456,12 @@ sequenceDiagram
 | GET    | `/stats`          | `{clubes, utilizadores, tipousers, mapas}`      | —    | `stats` TTL 60 s               |
 | GET    | `/statstpuser`    | `{tipo_descricao: count, ...}`                  | JWT  | `statstpuser` TTL 60 s         |
 | GET    | `/registrations`  | `[{month: str, count: int}]` (12 meses)        | JWT  | `registrations:{year}` TTL 300 s |
+
+<!-- 📸 SCREENSHOT: Página Calendário (calendario.vue) — Três chips informativos no topo (total clubes,
+     inscrições, dica). Grelha FullCalendar em vista mensal com eventos coloridos por clube. Ao clicar
+     num evento, painel lateral desliza mostrando detalhes do clube (nome, localidade, email, telefone,
+     data do evento) com botão "Ingressar" dourado ou badge "Já inscrito" se o utilizador já pertence
+     ao clube. Feedback visual de sucesso/conflito/erro inline. -->
 
 ---
 
