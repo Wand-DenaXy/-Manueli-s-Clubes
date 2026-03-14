@@ -152,7 +152,7 @@ async function kpiCards() {
     kpis.value = [
       { label: 'Total de Clubes',  value: data.clubes,icon: '🏛️' },
       { label: 'Membros Ativos',   value: data.utilizadores,icon: '👥' },
-      { label: 'Tipos de Utilizadores',   value: data.tipousers,icon: '✨' }
+      { label: 'Mapas',   value: data.mapas,icon: '✨' }
     ]
   } catch (error) {
     console.error(error)
