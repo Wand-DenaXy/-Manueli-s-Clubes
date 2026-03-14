@@ -99,10 +99,10 @@ C4Component
 
 ```mermaid
 erDiagram
-    tipouser ||--o{ utilizador : "1:N"}
-    utilizador ||--o{ membro_clube : "1:N"}
-    clubes ||--o{ membro_clube : "1:N"}
-    clubes ||--o{ mapas : "1:N"}
+    tipouser ||--o{ utilizador : "1:N"
+    utilizador ||--o{ membro_clube : "1:N"
+    clubes ||--o{ membro_clube : "1:N"
+    clubes ||--o{ mapas : "1:N"
 
     tipouser {
         int id PK
