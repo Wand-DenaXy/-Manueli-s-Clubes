@@ -1,0 +1,39 @@
+services:
+
+  db:
+    image: postgres:15
+    container_name: clubes_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  api:
+    build: ./api
+    container_name: clubes_api
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./api/.env
+    environment:
+      MYSQL_HOST: host.docker.internal
+      MYSQL_PORT: 5432
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+
+  frontend:
+    build: ./nuxt-app
+    container_name: clubes_frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:

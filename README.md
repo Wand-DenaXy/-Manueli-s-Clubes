@@ -10,15 +10,16 @@ Plataforma web full-stack de gestão de clubes — **Nuxt 4** + **FastAPI** + **
 
 | Camada     | Tecnologia                         | Versão    |
 |------------|------------------------------------|-----------|
-| Runtime    | Python                             | 3.10+     |
+| Runtime    | Python                             | 3.11      |
 | API        | FastAPI + Uvicorn                  | 0.115.6   |
 | ORM        | SQLAlchemy                         | 2.0.36    |
 | DB         | PostgreSQL (psycopg2)              | 15+       |
 | Auth       | python-jose (JWT) + Argon2         | —         |
 | Cache      | In-memory dict (TTL + invalidação) | —         |
-| Frontend   | Nuxt 4 (Vue 3, SSR)               | 4.x       |
+| Frontend   | Nuxt 4 (Vue 3, SSR)               | 4.3.x     |
 | UI         | Bootstrap 5, SweetAlert2           | —         |
 | Viz        | Chart.js, Leaflet.js, FullCalendar | —         |
+| Container  | Docker + Docker Compose            | —         |
 
 ---
 
@@ -390,7 +391,7 @@ sequenceDiagram
 
 | Método | Rota                  | Body / Params       | Response               | Auth | Status Codes | Cache                                        |
 |--------|-----------------------|---------------------|------------------------|------|--------------|----------------------------------------------|
-| GET    | `/utilizadores`       | —                   | `[UtilizadorResponse]` | JWT  | 200          | —                                            |
+| GET    | `/utilizadores`       | —                   | `[UtilizadorResponse]` | JWT  | 200          | `utilizadores:list` TTL 30 s                 |
 | PUT    | `/utilizadores/{id}`  | `UtilizadorCreate`  | `UtilizadorResponse`   | JWT  | 200, 404     | invalidate `stats`, `statstpuser`            |
 | DELETE | `/utilizadores/{id}`  | —                   | —                      | JWT  | 204, 404     | invalidate `stats`, `statstpuser`, `registrations:` |
 
@@ -1006,17 +1007,20 @@ return db_clube
 ```
 -Manueli-s-Clubes/
 ├── README.md
-├── EXPLICACAO.md
+├── docker-compose.yml               # Orquestração: db + api + frontend
 ├── package.json                     # deps globais (Bootstrap, Chart.js, Leaflet)
 │
 ├── api/                             # Backend (FastAPI)
-│   ├── main.py                      # App factory, CRUD routes, stats, inscrições, cache integration
-│   ├── auth.py                      # Router /auth, JWT, Argon2
-│   ├── models.py                    # ORM models + Pydantic schemas
-│   ├── database.py                  # Engine, SessionLocal, get_db(), init_db()
-│   ├── cache.py                     # Cache in-memory: cache_get, cache_set, cache_invalidate
-│   ├── requirements.txt
+│   ├── Dockerfile                   # python:3.11-slim → uvicorn :8000
+│   ├── app/
+│   │   ├── main.py                  # App factory, CRUD routes, stats, inscrições, cache integration
+│   │   ├── auth.py                  # Router /auth, JWT, Argon2
+│   │   ├── models.py                # ORM models + Pydantic schemas
+│   │   ├── database.py              # Engine, SessionLocal, get_db(), init_db()
+│   │   ├── cache.py                 # Cache in-memory: cache_get, cache_set, cache_invalidate
+│   │   └── requirements.txt
 │   └── tests/                       # pytest + httpx
+│       ├── __init__.py
 │       ├── conftest.py
 │       ├── test_auth.py
 │       ├── test_clubes.py
@@ -1026,9 +1030,11 @@ return db_clube
 │       └── test_stats.py
 │
 └── nuxt-app/                        # Frontend (Nuxt 4)
+    ├── Dockerfile                   # node:20 → nuxt build + dev :3000
     ├── nuxt.config.js
     ├── package.json
     ├── tsconfig.json
+    ├── app/
     ├── components/
     │   └── Header.vue               # Nav global
     ├── pages/
@@ -1038,7 +1044,6 @@ return db_clube
     │   ├── clubes.vue               # CRUD table + permissões por tipo_id
     │   ├── mapas.vue                # Leaflet <ClientOnly> + CRUD pontos
     │   ├── calendario.vue           # FullCalendar <ClientOnly> + ingressar
-    │   ├── chat.vue                 # Chat
     │   └── aboutus.vue              # Sobre nós — stats em tempo real
     ├── assets/{css,js,images}/      # Bootstrap 5 (source + minified)
     └── public/robots.txt
@@ -1048,7 +1053,9 @@ return db_clube
 
 ## Setup
 
-### Variáveis de Ambiente (`api/.env`)
+### Variáveis de Ambiente
+
+#### `api/.env` — Backend
 
 ```env
 MYSQL_HOST=localhost
@@ -1060,22 +1067,150 @@ SECRET_KEY=<random-256-bit-hex>
 ALGORITHM=HS256
 ```
 
-### Backend
+#### `.env` (raiz) — Docker Compose
+
+```env
+DB_USER=<user>
+DB_PASSWORD=<password>
+DB_NAME=clubes_db
+```
+
+> As variáveis `DB_USER`, `DB_PASSWORD` e `DB_NAME` são usadas pelo `docker-compose.yml` para configurar o PostgreSQL e injetadas no serviço `api` como `MYSQL_*`.
+
+### Backend (local)
 
 ```bash
-cd api
+cd api/app
 pip install -r requirements.txt
 uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 # → http://localhost:8000/docs (Swagger UI)
 ```
 
-### Frontend
+### Frontend (local)
 
 ```bash
 cd nuxt-app
 npm install
 npm run dev
 # → http://localhost:3000
+```
+
+---
+
+## Docker
+
+O projeto inclui `docker-compose.yml` com 3 serviços e Dockerfiles dedicados para API e Frontend.
+
+### Serviços
+
+| Serviço    | Imagem Base        | Container          | Porta  | Descrição                              |
+|------------|--------------------|--------------------|--------|----------------------------------------|
+| `db`       | `postgres:15`      | `clubes_db`        | 5432   | PostgreSQL com volume persistente      |
+| `api`      | `python:3.11-slim` | `clubes_api`       | 8000   | FastAPI + Uvicorn                      |
+| `frontend` | `node:20`          | `clubes_frontend`  | 3000   | Nuxt 4 (build + dev)                   |
+
+### `docker-compose.yml`
+
+```yaml
+services:
+
+  db:
+    image: postgres:15
+    container_name: clubes_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  api:
+    build: ./api
+    container_name: clubes_api
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./api/.env
+    environment:
+      MYSQL_HOST: host.docker.internal
+      MYSQL_PORT: 5432
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+
+  frontend:
+    build: ./nuxt-app
+    container_name: clubes_frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
+```
+
+### Dockerfiles
+
+#### API (`api/Dockerfile`)
+
+```dockerfile
+FROM python:3.11-slim
+WORKDIR /app
+COPY app/ .
+RUN pip install -r requirements.txt
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+#### Frontend (`nuxt-app/Dockerfile`)
+
+```dockerfile
+FROM node:20
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+CMD ["npm", "run", "dev"]
+```
+
+### Executar com Docker
+
+```bash
+# Criar ficheiro .env na raiz com DB_USER, DB_PASSWORD, DB_NAME
+# Criar ficheiro api/.env com MYSQL_*, SECRET_KEY, ALGORITHM
+
+docker compose up --build
+# → API:      http://localhost:8000/docs
+# → Frontend: http://localhost:3000
+# → DB:       localhost:5432
+```
+
+```bash
+# Parar e remover containers
+docker compose down
+
+# Parar e remover containers + volume de dados
+docker compose down -v
+```
+
+### Diagrama de Rede (Docker)
+
+```mermaid
+graph LR
+    subgraph Docker Network
+        DB["clubes_db<br/>postgres:15<br/>:5432"]
+        API["clubes_api<br/>python:3.11-slim<br/>:8000"]
+        FE["clubes_frontend<br/>node:20<br/>:3000"]
+    end
+
+    FE -->|depends_on| API
+    API -->|host.docker.internal:5432| DB
+    Browser([Browser]) -->|:3000| FE
+    Browser -->|:8000| API
 ```
 
 ---
