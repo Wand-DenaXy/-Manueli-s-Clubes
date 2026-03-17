@@ -8,17 +8,18 @@ from passlib.context import CryptContext
 from dotenv import load_dotenv
 from typing import Annotated
 from datetime import datetime
-from sqlalchemy import extract,func
+from sqlalchemy import extract, func, text, inspect as sa_inspect
 from auth import get_current_user
 from sqlalchemy.orm import joinedload
-from database import get_db, init_db
+from database import get_db, init_db, engine as _engine
 from cache import cache_get, cache_set, cache_invalidate
 from models import (
     ClubeModel, ClubeCreate, ClubeResponse,
     UtilizadorModel, UtilizadorCreate, UtilizadorResponse,
     TipoUserModel, TipoUserCreate, TipoUserResponse,
     MapaModel, MapaCreate, MapaResponse,
-    MembroClubeModel, IngressarResponse
+    MembroClubeModel, IngressarResponse,
+    PlanoModel, PlanoCreate, PlanoResponse
 )
 
 app = FastAPI(title="API Manueli's Clubes", description="API para gestão de clubes e utilizadores")
@@ -35,9 +36,24 @@ user_dependency = Annotated[UtilizadorModel, Depends(get_current_user)]
 bcrypt_context = CryptContext(schemes=["argon2"], deprecated="auto")
 load_dotenv()
 
+
 @app.on_event("startup")
 def startup():
     init_db()
+    db = next(get_db())
+    try:
+        if db.query(TipoUserModel).count() == 0:
+            db.add_all([TipoUserModel(descricao=d) for d in ["Administrador", "Gestor", "Cliente"]])
+            db.commit()
+        if db.query(PlanoModel).count() == 0:
+            db.add_all([
+                PlanoModel(nome="Free",preco=0.0,   limite_clubes=3,  limite_mapas=1),
+                PlanoModel(nome="Pro",preco=9.99,  limite_clubes=15, limite_mapas=20),
+                PlanoModel(nome="Enterprise",preco=29.99, limite_clubes=-1, limite_mapas=-1),
+            ])
+            db.commit()
+    finally:
+        db.close()
 
 
 @app.get("/")
@@ -50,6 +66,12 @@ MESES = [
     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
 ]
 
+def require_roles(*roles: str):
+    def role_checker(user: UtilizadorModel = Depends(get_current_user)):
+        if user.tipo.descricao not in roles:
+            raise HTTPException(status_code=403, detail="Sem permissão")
+        return user
+    return role_checker
 
 @app.get("/stats")
 def get_stats(db: Session = Depends(get_db)):
@@ -120,7 +142,7 @@ def registrations_by_month(
 def create_clube(   
     clube: ClubeCreate,
     db: Session = Depends(get_db),
-    user: UtilizadorModel = Depends(get_current_user)
+    user: UtilizadorModel = Depends(require_roles("Administrador"))
 ):
     db_clube = ClubeModel(**clube.dict())
     db.add(db_clube)
@@ -164,7 +186,7 @@ def update_clube(
     clube_id: int,
     clube: ClubeCreate,
     db: Session = Depends(get_db),
-    user: UtilizadorModel = Depends(get_current_user)
+    user: UtilizadorModel = Depends(require_roles("Administrador"))
 ):
     db_clube = db.query(ClubeModel).filter(ClubeModel.id == clube_id).first()
     if not db_clube:
@@ -187,7 +209,7 @@ def update_clube(
 def delete_clube(
     clube_id: int,
     db: Session = Depends(get_db),
-    user: UtilizadorModel = Depends(get_current_user)
+    user: UtilizadorModel = Depends(require_roles("Administrador"))
 ):
     db_clube = db.query(ClubeModel).filter(ClubeModel.id == clube_id).first()
     if not db_clube:
@@ -200,17 +222,18 @@ def delete_clube(
 @app.get("/utilizadores", response_model=list[UtilizadorResponse])
 def list_utilizadores(
     db: Session = Depends(get_db),
-    user: UtilizadorModel = Depends(get_current_user)
+    user: UtilizadorModel = Depends(require_roles("Administrador"))
 ):
     cached = cache_get("utilizadores:list")
     if cached is not None:
         return cached
-    result = db.query(UtilizadorModel).options(joinedload(UtilizadorModel.tipo)).all()
+    result = db.query(UtilizadorModel).options(joinedload(UtilizadorModel.tipo), joinedload(UtilizadorModel.plano)).all()
     utilizadores_dict = [
         {
             "id": utilizador.id,
             "username": utilizador.username,
             "tipo": {"id": utilizador.tipo.id, "descricao": utilizador.tipo.descricao},
+            "plano": {"id": utilizador.plano.id, "nome": utilizador.plano.nome, "preco": utilizador.plano.preco, "limite_clubes": utilizador.plano.limite_clubes, "limite_mapas": utilizador.plano.limite_mapas},
             "created_at": utilizador.created_at
         }
         for utilizador in result
@@ -222,7 +245,7 @@ def list_utilizadores(
 def delete_utilizador(
     utilizador_id: int,
     db: Session = Depends(get_db),
-    user: UtilizadorModel = Depends(get_current_user)
+    user: UtilizadorModel = Depends(require_roles("Administrador"))
 ):
     db_utilizador = db.query(UtilizadorModel).filter(UtilizadorModel.id == utilizador_id).first()
     if not db_utilizador:
@@ -237,7 +260,7 @@ def update_utilizador(
     utilizador_id: int,
     utilizador: UtilizadorCreate,
     db: Session = Depends(get_db),
-    user: UtilizadorModel = Depends(get_current_user)
+    user: UtilizadorModel = Depends(require_roles("Administrador"))
 ):
     db_utilizador = db.query(UtilizadorModel).filter(UtilizadorModel.id == utilizador_id).first()
     if not db_utilizador:
@@ -408,6 +431,64 @@ def delete_mapa(
     db.commit()
     cache_invalidate("stats", "mapas:")
     return {"message": "Mapa apagado com sucesso"}
+
+@app.get("/planos", response_model=list[PlanoResponse])
+def list_planos(db: Session = Depends(get_db)):
+    cached = cache_get("planos:list")
+    if cached is not None:
+        return cached
+    result = db.query(PlanoModel).all()
+    planos_dict = [
+        {"id": p.id, "nome": p.nome, "preco": p.preco,
+         "limite_clubes": p.limite_clubes, "limite_mapas": p.limite_mapas}
+        for p in result
+    ]
+    cache_set("planos:list", planos_dict, ttl=120)
+    return planos_dict
+
+@app.post("/planos", response_model=PlanoResponse, status_code=201)
+def create_plano(
+    plano: PlanoCreate,
+    db: Session = Depends(get_db),
+    user: UtilizadorModel = Depends(get_current_user),
+):
+    db_plano = PlanoModel(**plano.dict())
+    db.add(db_plano)
+    db.commit()
+    db.refresh(db_plano)
+    cache_invalidate("planos:")
+    return db_plano
+
+@app.put("/planos/{plano_id}", response_model=PlanoResponse)
+def update_plano(
+    plano_id: int,
+    plano: PlanoCreate,
+    db: Session = Depends(get_db),
+    user: UtilizadorModel = Depends(get_current_user),
+):
+    db_plano = db.query(PlanoModel).filter(PlanoModel.id == plano_id).first()
+    if not db_plano:
+        raise HTTPException(status_code=404, detail="Plano não encontrado")
+    for key, value in plano.dict().items():
+        setattr(db_plano, key, value)
+    db.commit()
+    db.refresh(db_plano)
+    cache_invalidate("planos:")
+    return db_plano
+
+@app.delete("/planos/{plano_id}", status_code=204)
+def delete_plano(
+    plano_id: int,
+    db: Session = Depends(get_db),
+    user: UtilizadorModel = Depends(get_current_user),
+):
+    db_plano = db.query(PlanoModel).filter(PlanoModel.id == plano_id).first()
+    if not db_plano:
+        raise HTTPException(status_code=404, detail="Plano não encontrado")
+    db.delete(db_plano)
+    db.commit()
+    cache_invalidate("planos:")
+    return None
 
 @app.post("/clubes/{clube_id}/ingressar", response_model=IngressarResponse, status_code=201)
 def ingressar_clube(

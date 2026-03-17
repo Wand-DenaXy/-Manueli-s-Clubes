@@ -1,26 +1,26 @@
-import time
+import os
+import json
 from typing import Any
+import redis
 
-_cache: dict[str, tuple[float, Any]] = {}
+_redis = redis.Redis.from_url(
+    os.getenv("REDIS_URL", "redis://localhost:6379/0"),
+    decode_responses=True,
+)
 
 
 def cache_get(key: str) -> Any | None:
-    entry = _cache.get(key)
-    if entry is None:
+    value = _redis.get(key)
+    if value is None:
         return None
-    expires_at, value = entry
-    if time.monotonic() > expires_at:
-        del _cache[key]
-        return None
-    return value
+    return json.loads(value)
 
 
 def cache_set(key: str, value: Any, ttl: int) -> None:
-    """Guarda o valor em cache com TTL em segundos."""
-    _cache[key] = (time.monotonic() + ttl, value)
+    _redis.setex(key, ttl, json.dumps(value, default=str))
 
 
 def cache_invalidate(*prefixes: str) -> None:
-    keys_to_delete = [k for k in _cache if any(k.startswith(p) for p in prefixes)]
-    for k in keys_to_delete:
-        del _cache[k]
+    for prefix in prefixes:
+        for key in _redis.scan_iter(f"{prefix}*"):
+            _redis.delete(key)
