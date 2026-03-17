@@ -16,31 +16,7 @@
         </div>
       </a>
       <span class="sidebar-section">Principal</span>
-      <NuxtLink to="/dashboard" class="nav-item" :class="{ active: route.path === '/dashboard' }">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-        Dashboard
-      </NuxtLink>
-      <NuxtLink to="/clubes" class="nav-item" :class="{ active: route.path === '/clubes' }">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        Clubes
-      </NuxtLink>
-      <NuxtLink to="/mapas" class="nav-item" exact-active-class="active">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M1 6l7-3 8 3 7-3v15l-7 3-8-3-7 3V6z"/>
-          <line x1="8" y1="3" x2="8" y2="18"/>
-          <line x1="16" y1="6" x2="16" y2="21"/>
-        </svg>
-        Mapas
-      </NuxtLink>
-      <NuxtLink to="/calendario" class="nav-item" :class="{ active: route.path === '/calendario' }">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <rect x="3" y="4" width="18" height="18" rx="2"/>
-          <line x1="16" y1="2" x2="16" y2="6"/>
-          <line x1="8" y1="2" x2="8" y2="6"/>
-          <line x1="3" y1="10" x2="21" y2="10"/>
-        </svg>
-        Calendário
-      </NuxtLink>
+       <NavBar />
     </aside>
 
     <div class="main">
@@ -196,16 +172,19 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { jwtDecode } from 'jwt-decode'
 import FullCalendar from '@fullcalendar/vue3'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import ptLocale from '@fullcalendar/core/locales/pt'
+import NavBar from "~/components/Navbar.vue";
 
 const BASE_URL = 'http://localhost:8000'
 
 const route        = useRoute()
 const router       = useRouter()
 const sidebarOpen  = ref(false)
+const isAdmin      = ref(false)
 const selectedClub = ref(null)
 const joining      = ref(false)
 const joinFeedback = ref(null)
@@ -335,6 +314,10 @@ const calendarOptions = computed(() => ({
 
 onMounted(() => {
   inscritos.value = JSON.parse(sessionStorage.getItem('clubes_inscritos') || '[]')
+  const token = localStorage.getItem('access_token')
+  if (token) {
+    try { isAdmin.value = Number(jwtDecode(token).tipo_id) === 1 } catch {}
+  }
   fetchClubes()
 })
 </script>

@@ -35,7 +35,18 @@ class MembroClubeModel(Base):
     utilizador = relationship("UtilizadorModel", back_populates="clubes_inscritos")
     clube = relationship("ClubeModel", back_populates="membros")
 
-    
+class PlanoModel(Base):
+    __tablename__ = "planos"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    nome = Column(String(100), nullable=True)
+    preco = Column(Float, default=0.0)
+    limite_clubes = Column(Integer, default=-1)
+    limite_mapas = Column(Integer, default=-1)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    utilizadores = relationship("UtilizadorModel", back_populates="plano")
+
+   
 class TipoUserModel(Base):
     __tablename__ = "tipouser"
 
@@ -52,8 +63,10 @@ class UtilizadorModel(Base):
     password = Column(String(255), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     tipo_id = Column(Integer, ForeignKey("tipouser.id"), nullable=False)
+    plano_id = Column(Integer, ForeignKey("planos.id"), nullable=True)
 
     tipo = relationship("TipoUserModel", back_populates="utilizadores")
+    plano = relationship("PlanoModel", back_populates="utilizadores")
     clubes_inscritos = relationship("MembroClubeModel",back_populates="utilizador",cascade="all, delete-orphan")
 
 
@@ -83,6 +96,22 @@ class ClubeResponse(ClubeCreate):
     class Config:
         from_attributes = True
 
+class PlanoCreate(BaseModel):
+    nome: str
+    preco: float = 0.0
+    limite_clubes: int = -1
+    limite_mapas: int = -1
+
+class PlanoResponse(BaseModel):
+    id: int
+    nome: str | None = None
+    preco: float
+    limite_clubes: int
+    limite_mapas: int
+
+    class Config:
+        from_attributes = True
+
 class TipoUserResponse(BaseModel):
     id: int
     descricao: str
@@ -107,6 +136,7 @@ class UtilizadorResponse(BaseModel):
     id: int
     username: str
     tipo: TipoUserResponse
+    plano: PlanoResponse | None = None
     created_at: datetime
 
     class Config:
@@ -133,6 +163,7 @@ class IngressarResponse(BaseModel):
     clube_id:    int
     clube_nome:  str
     inscrito_em: datetime
+
 
     class Config:
         from_attributes = True
