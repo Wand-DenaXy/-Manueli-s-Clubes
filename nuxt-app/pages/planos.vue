@@ -50,7 +50,7 @@
           <div class="plan-card">
             <div class="plan-badge">Starter</div>
             <div class="plan-price">
-              <span class="price-value">0€</span>
+              <span class="price-value">{{ planos[0]?.preco }}€</span>
               <span class="price-period">/mês</span>
             </div>
             <p class="plan-desc">Ideal para experimentar a plataforma sem compromisso.</p>
@@ -76,7 +76,7 @@
             <div class="plan-badge">Pro</div>
             <div class="popular-tag">Mais popular</div>
             <div class="plan-price">
-              <span class="price-value">9.99€</span>
+              <span class="price-value">{{ planos[1].preco }}€</span>
               <span class="price-period">/mês</span>
             </div>
             <p class="plan-desc">Para equipas em crescimento que precisam de mais recursos.</p>
@@ -101,7 +101,7 @@
           <div class="plan-card">
             <div class="plan-badge">Enterprise</div>
             <div class="plan-price">
-              <span class="price-value">29.99€</span>
+              <span class="price-value">{{ planos[2]?.preco }}€</span>
               <span class="price-period">/mês</span>
             </div>
             <p class="plan-desc">Sem limites. Tudo incluído para grandes organizações.</p>
@@ -134,12 +134,12 @@ import { useRouter } from 'vue-router'
 import NavBar from '~/components/Navbar.vue'
 
 const router = useRouter()
+const planos = ref([])
 const sidebarOpen = ref(false)
-const token = localStorage.getItem('access_token')
+const token = ref(null) 
 
 async function buscarPrecoPlanos() {
   try {
-
     const response = await fetch('http://localhost:8000/planos', {
       headers: { Authorization: `Bearer ${token}` }
     })
@@ -148,10 +148,7 @@ async function buscarPrecoPlanos() {
       throw new Error("Erro ao buscar preços dos planos")
     }
 
-    const data = await response.json()
-    preco.value = data.preco
-    limite_clubes.value = data.limite_clubes
-    limite_mapas.value = data.limite_mapas
+    planos.value = await response.json()
 
   } catch (error) {
     console.error(error)
@@ -164,8 +161,9 @@ const currentMonthYear = computed(() =>
 )
 
 onMounted(() => {
-  const token = localStorage.getItem('access_token')
+  token.value = localStorage.getItem('access_token')
   if (!token) { router.push('/login') }
+  buscarPrecoPlanos();
 })
 </script>
 
