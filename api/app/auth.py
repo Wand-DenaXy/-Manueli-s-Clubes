@@ -6,8 +6,8 @@ from sqlalchemy.orm import Session
 from starlette import status
 import os
 from dotenv import load_dotenv
-from database import SessionLocal
-from models import UtilizadorModel
+from app.database import SessionLocal
+from app.models import UtilizadorModel
 from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt

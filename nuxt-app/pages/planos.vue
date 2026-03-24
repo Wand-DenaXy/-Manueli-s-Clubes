@@ -40,6 +40,9 @@
       </header>
 
       <div class="content">
+        <div v-if="successMsg" class="alert alert-success">✦ {{ successMsg }}</div>
+        <div v-if="cancelMsg" class="alert alert-cancel">{{ cancelMsg }}</div>
+
         <div class="plans-header">
           <span class="section-chip">✦ Subscrição</span>
           <h2 class="section-title">Encontra o plano <em>perfeito</em></h2>
@@ -50,7 +53,7 @@
           <div class="plan-card">
             <div class="plan-badge">Starter</div>
             <div class="plan-price">
-              <span class="price-value">{{ planos[0]?.preco }}€</span>
+              <span class="price-value">{{ planos[0]?.preco  || "0"}}€</span>
               <span class="price-period">/mês</span>
             </div>
             <p class="plan-desc">Ideal para experimentar a plataforma sem compromisso.</p>
@@ -69,14 +72,14 @@
                 Calendário de eventos
               </li>
             </ul>
-            <button class="plan-btn">Plano Atual</button>
+            <button class="plan-btn" disabled>Plano Atual</button>
           </div>
 
           <div class="plan-card featured">
             <div class="plan-badge">Pro</div>
             <div class="popular-tag">Mais popular</div>
             <div class="plan-price">
-              <span class="price-value">{{ planos[1].preco }}€</span>
+              <span class="price-value">{{ planos[1]?.preco  || ""}}€</span>
               <span class="price-period">/mês</span>
             </div>
             <p class="plan-desc">Para equipas em crescimento que precisam de mais recursos.</p>
@@ -95,13 +98,15 @@
                 Calendário de eventos
               </li>
             </ul>
-            <button class="plan-btn gold">Escolher Pro</button>
+            <button class="plan-btn gold" :disabled="loadingPlano === 2" @click="escolherPlano(2)">
+              {{ loadingPlano === 2 ? 'A redirecionar...' : 'Escolher Pro' }}
+            </button>
           </div>
 
           <div class="plan-card">
             <div class="plan-badge">Enterprise</div>
             <div class="plan-price">
-              <span class="price-value">{{ planos[2]?.preco }}€</span>
+              <span class="price-value">{{ planos[2]?.preco  || ""}}€</span>
               <span class="price-period">/mês</span>
             </div>
             <p class="plan-desc">Sem limites. Tudo incluído para grandes organizações.</p>
@@ -120,7 +125,9 @@
                 Calendário de eventos
               </li>
             </ul>
-            <button class="plan-btn">Escolher Enterprise</button>
+            <button class="plan-btn" :disabled="loadingPlano === 3" @click="escolherPlano(3)">
+              {{ loadingPlano === 3 ? 'A redirecionar...' : 'Escolher Enterprise' }}
+            </button>
           </div>
         </div>
       </div>
@@ -130,18 +137,22 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import NavBar from '~/components/Navbar.vue'
 
 const router = useRouter()
+const route = useRoute()
 const planos = ref([])
 const sidebarOpen = ref(false)
-const token = ref(null) 
+const token = ref(null)
+const loadingPlano = ref(null)
+const successMsg = ref('')
+const cancelMsg = ref('')
 
 async function buscarPrecoPlanos() {
   try {
     const response = await fetch('http://localhost:8000/planos', {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${token.value}` }
     })
 
     if (!response.ok) {
@@ -155,6 +166,33 @@ async function buscarPrecoPlanos() {
   }
 }
 
+async function escolherPlano(planoId) {
+  loadingPlano.value = planoId
+  try {
+    const response = await fetch('http://localhost:8000/create-checkout-session', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token.value}`
+      },
+      body: JSON.stringify({ plano_id: planoId })
+    })
+
+    if (!response.ok) {
+      const err = await response.json()
+      throw new Error(err.detail || 'Erro ao criar sessão de pagamento')
+    }
+
+    const { url } = await response.json()
+    window.location.href = url
+  } catch (error) {
+    console.error(error)
+    alert(error.message)
+  } finally {
+    loadingPlano.value = null
+  }
+}
+
 const currentMonthYear = computed(() =>
   new Date().toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' })
     .replace(/^\w/, c => c.toUpperCase())
@@ -162,8 +200,15 @@ const currentMonthYear = computed(() =>
 
 onMounted(() => {
   token.value = localStorage.getItem('access_token')
-  if (!token) { router.push('/login') }
-  buscarPrecoPlanos();
+  if (!token.value) { router.push('/login') }
+  buscarPrecoPlanos()
+
+  if (route.query.success === 'true') {
+    successMsg.value = 'Pagamento realizado com sucesso! O teu plano foi atualizado.'
+  }
+  if (route.query.canceled === 'true') {
+    cancelMsg.value = 'Pagamento cancelado. Podes tentar novamente quando quiseres.'
+  }
 })
 </script>
 
@@ -332,6 +377,18 @@ onMounted(() => {
 .plan-btn.gold:hover { opacity: .9; transform: translateY(-1px); }
 
 @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+
+.alert {
+  width: 100%; max-width: 960px; padding: 1rem 1.4rem;
+  border-radius: var(--radius); font-size: .88rem; text-align: center;
+  animation: fadeUp .4s ease both;
+}
+.alert-success {
+  background: rgba(76,175,80,0.08); border: 1px solid rgba(76,175,80,0.3); color: #81c784;
+}
+.alert-cancel {
+  background: rgba(255,152,0,0.08); border: 1px solid rgba(255,152,0,0.3); color: #ffb74d;
+}
 
 @media (max-width: 1099px) {
   .sidebar { transform: translateX(-100%); }

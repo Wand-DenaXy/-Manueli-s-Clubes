@@ -1,6 +1,7 @@
 import os
-import auth
-from fastapi import FastAPI, Depends, HTTPException,Response
+import stripe
+from app import auth
+from fastapi import FastAPI, Depends, HTTPException,Response,Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -9,17 +10,18 @@ from dotenv import load_dotenv
 from typing import Annotated
 from datetime import datetime
 from sqlalchemy import extract, func, text, inspect as sa_inspect
-from auth import get_current_user
+from app.auth import get_current_user
 from sqlalchemy.orm import joinedload
-from database import get_db, init_db, engine as _engine
-from cache import cache_get, cache_set, cache_invalidate
-from models import (
+from app.database import get_db, init_db, engine as _engine
+from app.cache import cache_get, cache_set, cache_invalidate
+from app.models import (
     ClubeModel, ClubeCreate, ClubeResponse,
     UtilizadorModel, UtilizadorCreate, UtilizadorResponse,
     TipoUserModel, TipoUserCreate, TipoUserResponse,
     MapaModel, MapaCreate, MapaResponse,
     MembroClubeModel, IngressarResponse,
-    PlanoModel, PlanoCreate, PlanoResponse
+    PlanoModel, PlanoCreate, PlanoResponse,
+    CheckoutRequest
 )
 
 app = FastAPI(title="API Manueli's Clubes", description="API para gestão de clubes e utilizadores")
@@ -35,6 +37,9 @@ db_dependency = Annotated[Session, Depends(get_db)]
 user_dependency = Annotated[UtilizadorModel, Depends(get_current_user)]
 bcrypt_context = CryptContext(schemes=["argon2"], deprecated="auto")
 load_dotenv()
+
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
 
 @app.on_event("startup")
@@ -87,6 +92,7 @@ def get_stats(db: Session = Depends(get_db)):
     }
     cache_set("stats", result, ttl=60)
     return result
+
 @app.get("/statstpuser")
 def get_stats_tpuser(
     db: Session = Depends(get_db),
@@ -137,6 +143,7 @@ def registrations_by_month(
     data = [{"month": MESES[m - 1], "count": counts[m]} for m in range(1, 13)]
     cache_set(cache_key, data, ttl=300)
     return data
+
 
 @app.post("/clubes", response_model=ClubeResponse)
 def create_clube(   
@@ -489,6 +496,70 @@ def delete_plano(
     db.commit()
     cache_invalidate("planos:")
     return None
+
+
+
+@app.post("/create-checkout-session")
+def create_checkout_session(
+    req: CheckoutRequest,
+    db: Session = Depends(get_db),
+    user: UtilizadorModel = Depends(get_current_user),
+):
+    plano = db.query(PlanoModel).filter(PlanoModel.id == req.plano_id).first()
+    if not plano:
+        raise HTTPException(status_code=404, detail="Plano não encontrado")
+    if plano.preco <= 0:
+        raise HTTPException(status_code=400, detail="Este plano é gratuito")
+
+    try:
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            line_items=[{
+                "price_data": {
+                    "currency": "eur",
+                    "product_data": {"name": f"Plano {plano.nome}"},
+                    "unit_amount": int(round(plano.preco * 100)),
+                    "recurring": {"interval": "month"},
+                },
+                "quantity": 1,
+            }],
+            mode="subscription",
+            success_url=f"{FRONTEND_URL}/planos?success=true&plano_id={plano.id}",
+            cancel_url=f"{FRONTEND_URL}/planos?canceled=true",
+            metadata={"user_id": str(user.id), "plano_id": str(plano.id)},
+        )
+    except stripe.error.StripeError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+    return {"url": session.url}
+
+@app.post("/confirmar-plano")
+def confirmar_plano(
+    session_id: str,
+    db: Session = Depends(get_db),
+    user: UtilizadorModel = Depends(get_current_user),
+):
+    try:
+        session = stripe.checkout.Session.retrieve(session_id)
+    except stripe.error.StripeError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+    if session.payment_status != "paid":
+        raise HTTPException(status_code=400, detail="Pagamento não confirmado")
+
+    plano_id = session.metadata.get("plano_id")
+    user_id = session.metadata.get("user_id")
+
+    if not plano_id or str(user["id"]) != user_id:
+        raise HTTPException(status_code=400, detail="Sessão inválida")
+
+    db_user = db.query(UtilizadorModel).filter(UtilizadorModel.id == user["id"]).first()
+    db_user.plano_id = int(plano_id)
+    db.commit()
+    cache_invalidate("utilizadores:")
+
+    return {"mensagem": "Plano atualizado com sucesso"}
+
 
 @app.post("/clubes/{clube_id}/ingressar", response_model=IngressarResponse, status_code=201)
 def ingressar_clube(
