@@ -111,7 +111,6 @@ async function fazerLogin() {
       icon: 'error',
       confirmButtonText: 'Ok'
     })
-      return
     }
 
     const data = await response.json()

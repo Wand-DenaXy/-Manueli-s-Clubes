@@ -4,7 +4,7 @@ from sqlalchemy import Float
 from typing import Optional
 from pydantic import BaseModel
 from sqlalchemy.orm import relationship
-from database import Base 
+from app.database import Base 
 
 
 class ClubeModel(Base):
@@ -163,6 +163,9 @@ class IngressarResponse(BaseModel):
     clube_id:    int
     clube_nome:  str
     inscrito_em: datetime
+
+class CheckoutRequest(BaseModel):
+    plano_id: int
 
 
     class Config:

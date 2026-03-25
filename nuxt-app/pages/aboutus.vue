@@ -55,8 +55,8 @@
           <span class="vc-label">Membros</span>
         </div>
         <div class="visual-card vc-3">
-          <span class="vc-num">{{ tipousers }}</span>
-          <span class="vc-label">Categorias</span>
+          <span class="vc-num">{{ mapas }}</span>
+          <span class="vc-label">Localizações</span>
         </div>
         <div class="visual-card vc-4">
           <span class="vc-num">2026</span>
@@ -122,11 +122,11 @@ import { ref } from 'vue'
 
 const clubes = ref(0)
 const utilizadores = ref(0)
-const tipousers = ref(0)
+const mapas = ref(0)
 
 async function buscarStats() {
   try {
-    const response = await fetch('http://192.168.1.83:8000/stats')
+    const response = await fetch('http://localhost:8000/stats')
 
     if (!response.ok) {
       throw new Error("Erro ao buscar estatísticas")
@@ -135,7 +135,7 @@ async function buscarStats() {
     const data = await response.json()
     clubes.value = data.clubes
     utilizadores.value = data.utilizadores
-    tipousers.value = data.tipousers
+    mapas.value = data.mapas
 
   } catch (error) {
     console.error(error)

@@ -1,6 +1,7 @@
 import os
-import auth
-from fastapi import FastAPI, Depends, HTTPException,Response
+import stripe
+from app import auth
+from fastapi import FastAPI, Depends, HTTPException,Response,Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -9,17 +10,18 @@ from dotenv import load_dotenv
 from typing import Annotated
 from datetime import datetime
 from sqlalchemy import extract, func, text, inspect as sa_inspect
-from auth import get_current_user
+from app.auth import get_current_user
 from sqlalchemy.orm import joinedload
-from database import get_db, init_db, engine as _engine
-from cache import cache_get, cache_set, cache_invalidate
-from models import (
+from app.database import get_db, init_db, engine as _engine
+from app.cache import cache_get, cache_set, cache_invalidate
+from app.models import (
     ClubeModel, ClubeCreate, ClubeResponse,
     UtilizadorModel, UtilizadorCreate, UtilizadorResponse,
     TipoUserModel, TipoUserCreate, TipoUserResponse,
     MapaModel, MapaCreate, MapaResponse,
     MembroClubeModel, IngressarResponse,
-    PlanoModel, PlanoCreate, PlanoResponse
+    PlanoModel, PlanoCreate, PlanoResponse,
+    CheckoutRequest
 )
 
 app = FastAPI(title="API Manueli's Clubes", description="API para gestão de clubes e utilizadores")
@@ -35,6 +37,9 @@ db_dependency = Annotated[Session, Depends(get_db)]
 user_dependency = Annotated[UtilizadorModel, Depends(get_current_user)]
 bcrypt_context = CryptContext(schemes=["argon2"], deprecated="auto")
 load_dotenv()
+
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
 
 @app.on_event("startup")
@@ -87,6 +92,7 @@ def get_stats(db: Session = Depends(get_db)):
     }
     cache_set("stats", result, ttl=60)
     return result
+
 @app.get("/statstpuser")
 def get_stats_tpuser(
     db: Session = Depends(get_db),
@@ -138,11 +144,65 @@ def registrations_by_month(
     cache_set(cache_key, data, ttl=300)
     return data
 
+@app.get("/me", response_model=UtilizadorResponse)
+def get_me(
+    db: Session = Depends(get_db),
+    user: UtilizadorModel = Depends(get_current_user),
+):
+    db_user = db.query(UtilizadorModel).options(
+        joinedload(UtilizadorModel.tipo),
+        joinedload(UtilizadorModel.plano)
+    ).filter(UtilizadorModel.id == user.id).first()
+
+    return {
+        "id": db_user.id,
+        "username": db_user.username,
+        "tipo": {"id": db_user.tipo.id, "descricao": db_user.tipo.descricao},
+        "plano": {
+            "id": db_user.plano.id,
+            "nome": db_user.plano.nome,
+            "preco": db_user.plano.preco,
+            "limite_clubes": db_user.plano.limite_clubes,
+            "limite_mapas": db_user.plano.limite_mapas,
+        } if db_user.plano else None,
+        "created_at": db_user.created_at,
+    }
+
+@app.put("/me/plano/{plano_id}", response_model=UtilizadorResponse)
+def confirmar_plano(
+    plano_id: int,
+    db: Session = Depends(get_db),
+    user: UtilizadorModel = Depends(get_current_user),
+):
+    plano = db.query(PlanoModel).filter(PlanoModel.id == plano_id).first()
+    if not plano:
+        raise HTTPException(status_code=404, detail="Plano não encontrado")
+
+    db_user = db.query(UtilizadorModel).filter(UtilizadorModel.id == user.id).first()
+    db_user.plano_id = plano_id
+    db.commit()
+    db.refresh(db_user)
+    cache_invalidate("utilizadores:")
+
+    return {
+        "id": db_user.id,
+        "username": db_user.username,
+        "tipo": {"id": db_user.tipo.id, "descricao": db_user.tipo.descricao},
+        "plano": {
+            "id": db_user.plano.id,
+            "nome": db_user.plano.nome,
+            "preco": db_user.plano.preco,
+            "limite_clubes": db_user.plano.limite_clubes,
+            "limite_mapas": db_user.plano.limite_mapas,
+        },
+        "created_at": db_user.created_at,
+    }
+
 @app.post("/clubes", response_model=ClubeResponse)
 def create_clube(   
     clube: ClubeCreate,
     db: Session = Depends(get_db),
-    user: UtilizadorModel = Depends(require_roles("Administrador"))
+    user: UtilizadorModel = Depends(require_roles("Administrador","Gestor"))
 ):
     db_clube = ClubeModel(**clube.dict())
     db.add(db_clube)
@@ -346,7 +406,7 @@ def delete_tipo_user(
 def create_mapa(
     mapa: MapaCreate,
     db: Session = Depends(get_db),
-    user: UtilizadorModel = Depends(get_current_user)
+    user: UtilizadorModel = Depends(require_roles("Administrador","Gestor"))
 ):
     clube = db.query(ClubeModel).filter(ClubeModel.id == mapa.clube_id).first()
     if not clube:
@@ -392,7 +452,7 @@ def update_mapa(
     mapa_id: int,
     mapa: MapaCreate,
     db: Session = Depends(get_db),
-    user: UtilizadorModel = Depends(get_current_user)
+    user: UtilizadorModel = Depends(require_roles("Administrador","Gestor"))
 ):
     db_mapa = db.query(MapaModel).filter(MapaModel.id == mapa_id).first()
     if not db_mapa:
@@ -420,7 +480,7 @@ def update_mapa(
 def delete_mapa(
     mapa_id: int,
     db: Session = Depends(get_db),
-    user: UtilizadorModel = Depends(get_current_user)
+    user: UtilizadorModel = Depends(require_roles("Administrador","Gestor"))
 ):
     mapa = db.query(MapaModel).filter(MapaModel.id == mapa_id).first()
 
@@ -490,6 +550,43 @@ def delete_plano(
     cache_invalidate("planos:")
     return None
 
+
+
+@app.post("/create-checkout-session")
+def create_checkout_session(
+    req: CheckoutRequest,
+    db: Session = Depends(get_db),
+    user: UtilizadorModel = Depends(get_current_user),
+):
+    plano = db.query(PlanoModel).filter(PlanoModel.id == req.plano_id).first()
+    if not plano:
+        raise HTTPException(status_code=404, detail="Plano não encontrado")
+    if plano.preco <= 0:
+        raise HTTPException(status_code=400, detail="Este plano é gratuito")
+
+    try:
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            line_items=[{
+                "price_data": {
+                    "currency": "eur",
+                    "product_data": {"name": f"Plano {plano.nome}"},
+                    "unit_amount": int(round(plano.preco * 100)),
+                    "recurring": {"interval": "month"},
+                },
+                "quantity": 1,
+            }],
+            mode="subscription",
+            success_url=f"{FRONTEND_URL}/planos?success=true&plano_id={plano.id}",
+            cancel_url=f"{FRONTEND_URL}/planos?canceled=true",
+            metadata={"user_id": str(user.id), "plano_id": str(plano.id)},
+        )
+    except stripe.error.StripeError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+    return {"url": session.url}
+
+
 @app.post("/clubes/{clube_id}/ingressar", response_model=IngressarResponse, status_code=201)
 def ingressar_clube(
     clube_id: int,
@@ -501,7 +598,7 @@ def ingressar_clube(
         raise HTTPException(status_code=404, detail="Clube não encontrado")
 
     nova_inscricao = MembroClubeModel(
-        utilizador_id=user["id"],
+        utilizador_id=user.id,
         clube_id=clube_id,
     )
     db.add(nova_inscricao)

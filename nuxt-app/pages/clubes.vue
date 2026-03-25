@@ -223,16 +223,18 @@ async function listarClubes() {
           <td><input id="localidade_${c.id}" value="${c.localidade || ''}" class="cell-input" /></td>
           <td><input id="evento_at_${c.id}" value="${c.evento_at || ''}" class="cell-input" /></td>
           <td class="td-actions">
-            <button class="btn-save" onclick="atualizarClube(${c.id})">
+            ${isAdmin
+              ?
+              `
+              <button class="btn-save" onclick="atualizarClube(${c.id})">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
                 <polyline points="17 21 17 13 7 13 7 21"/>
                 <polyline points="7 3 7 8 15 8"/>
               </svg>
               Guardar
-            </button>
-            ${isAdmin
-              ? `<button class="btn-del" onclick="apagarClube(${c.id})">
+            </button> 
+              <button class="btn-del" onclick="apagarClube(${c.id})">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="3 6 5 6 21 6"/>
                     <path d="M19 6l-1 14H6L5 6"/>
