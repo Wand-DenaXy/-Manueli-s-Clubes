@@ -185,11 +185,35 @@ async function escolherPlano(planoId) {
 
     const { url } = await response.json()
     window.location.href = url
+
   } catch (error) {
     console.error(error)
-    alert(error.message)
+    cancelMsg.value = error.message
   } finally {
     loadingPlano.value = null
+  }
+}
+
+async function confirmarPlanoAposStripe(planoId) {
+  try {
+    const response = await fetch(`http://localhost:8000/me/plano/${planoId}`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token.value}`
+      }
+    })
+
+    if (!response.ok) {
+      const err = await response.json()
+      throw new Error(err.detail || 'Erro ao ativar plano')
+    }
+
+    const planoNomes = { 1: 'Free', 2: 'Pro', 3: 'Enterprise' }
+    successMsg.value = `✦ Plano ${planoNomes[planoId] ?? ''} ativado com sucesso!`
+
+  } catch (error) {
+    console.error(error)
+    cancelMsg.value = `Pagamento efetuado mas erro ao ativar plano: ${error.message}`
   }
 }
 
@@ -198,13 +222,14 @@ const currentMonthYear = computed(() =>
     .replace(/^\w/, c => c.toUpperCase())
 )
 
-onMounted(() => {
+onMounted( () => {
   token.value = localStorage.getItem('access_token')
   if (!token.value) { router.push('/login') }
   buscarPrecoPlanos()
 
-  if (route.query.success === 'true') {
-    successMsg.value = 'Pagamento realizado com sucesso! O teu plano foi atualizado.'
+  if (route.query.success === 'true' && route.query.plano_id) {
+    confirmarPlanoAposStripe(Number(route.query.plano_id))
+    router.replace({ path: route.path })
   }
   if (route.query.canceled === 'true') {
     cancelMsg.value = 'Pagamento cancelado. Podes tentar novamente quando quiseres.'

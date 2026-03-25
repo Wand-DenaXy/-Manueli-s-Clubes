@@ -144,12 +144,65 @@ def registrations_by_month(
     cache_set(cache_key, data, ttl=300)
     return data
 
+@app.get("/me", response_model=UtilizadorResponse)
+def get_me(
+    db: Session = Depends(get_db),
+    user: UtilizadorModel = Depends(get_current_user),
+):
+    db_user = db.query(UtilizadorModel).options(
+        joinedload(UtilizadorModel.tipo),
+        joinedload(UtilizadorModel.plano)
+    ).filter(UtilizadorModel.id == user.id).first()
+
+    return {
+        "id": db_user.id,
+        "username": db_user.username,
+        "tipo": {"id": db_user.tipo.id, "descricao": db_user.tipo.descricao},
+        "plano": {
+            "id": db_user.plano.id,
+            "nome": db_user.plano.nome,
+            "preco": db_user.plano.preco,
+            "limite_clubes": db_user.plano.limite_clubes,
+            "limite_mapas": db_user.plano.limite_mapas,
+        } if db_user.plano else None,
+        "created_at": db_user.created_at,
+    }
+
+@app.put("/me/plano/{plano_id}", response_model=UtilizadorResponse)
+def confirmar_plano(
+    plano_id: int,
+    db: Session = Depends(get_db),
+    user: UtilizadorModel = Depends(get_current_user),
+):
+    plano = db.query(PlanoModel).filter(PlanoModel.id == plano_id).first()
+    if not plano:
+        raise HTTPException(status_code=404, detail="Plano não encontrado")
+
+    db_user = db.query(UtilizadorModel).filter(UtilizadorModel.id == user.id).first()
+    db_user.plano_id = plano_id
+    db.commit()
+    db.refresh(db_user)
+    cache_invalidate("utilizadores:")
+
+    return {
+        "id": db_user.id,
+        "username": db_user.username,
+        "tipo": {"id": db_user.tipo.id, "descricao": db_user.tipo.descricao},
+        "plano": {
+            "id": db_user.plano.id,
+            "nome": db_user.plano.nome,
+            "preco": db_user.plano.preco,
+            "limite_clubes": db_user.plano.limite_clubes,
+            "limite_mapas": db_user.plano.limite_mapas,
+        },
+        "created_at": db_user.created_at,
+    }
 
 @app.post("/clubes", response_model=ClubeResponse)
 def create_clube(   
     clube: ClubeCreate,
     db: Session = Depends(get_db),
-    user: UtilizadorModel = Depends(require_roles("Administrador"))
+    user: UtilizadorModel = Depends(require_roles("Administrador","Gestor"))
 ):
     db_clube = ClubeModel(**clube.dict())
     db.add(db_clube)
@@ -353,7 +406,7 @@ def delete_tipo_user(
 def create_mapa(
     mapa: MapaCreate,
     db: Session = Depends(get_db),
-    user: UtilizadorModel = Depends(get_current_user)
+    user: UtilizadorModel = Depends(require_roles("Administrador","Gestor"))
 ):
     clube = db.query(ClubeModel).filter(ClubeModel.id == mapa.clube_id).first()
     if not clube:
@@ -399,7 +452,7 @@ def update_mapa(
     mapa_id: int,
     mapa: MapaCreate,
     db: Session = Depends(get_db),
-    user: UtilizadorModel = Depends(get_current_user)
+    user: UtilizadorModel = Depends(require_roles("Administrador","Gestor"))
 ):
     db_mapa = db.query(MapaModel).filter(MapaModel.id == mapa_id).first()
     if not db_mapa:
@@ -427,7 +480,7 @@ def update_mapa(
 def delete_mapa(
     mapa_id: int,
     db: Session = Depends(get_db),
-    user: UtilizadorModel = Depends(get_current_user)
+    user: UtilizadorModel = Depends(require_roles("Administrador","Gestor"))
 ):
     mapa = db.query(MapaModel).filter(MapaModel.id == mapa_id).first()
 
@@ -533,33 +586,6 @@ def create_checkout_session(
 
     return {"url": session.url}
 
-@app.post("/confirmar-plano")
-def confirmar_plano(
-    session_id: str,
-    db: Session = Depends(get_db),
-    user: UtilizadorModel = Depends(get_current_user),
-):
-    try:
-        session = stripe.checkout.Session.retrieve(session_id)
-    except stripe.error.StripeError as e:
-        raise HTTPException(status_code=502, detail=str(e))
-
-    if session.payment_status != "paid":
-        raise HTTPException(status_code=400, detail="Pagamento não confirmado")
-
-    plano_id = session.metadata.get("plano_id")
-    user_id = session.metadata.get("user_id")
-
-    if not plano_id or str(user["id"]) != user_id:
-        raise HTTPException(status_code=400, detail="Sessão inválida")
-
-    db_user = db.query(UtilizadorModel).filter(UtilizadorModel.id == user["id"]).first()
-    db_user.plano_id = int(plano_id)
-    db.commit()
-    cache_invalidate("utilizadores:")
-
-    return {"mensagem": "Plano atualizado com sucesso"}
-
 
 @app.post("/clubes/{clube_id}/ingressar", response_model=IngressarResponse, status_code=201)
 def ingressar_clube(
@@ -572,7 +598,7 @@ def ingressar_clube(
         raise HTTPException(status_code=404, detail="Clube não encontrado")
 
     nova_inscricao = MembroClubeModel(
-        utilizador_id=user["id"],
+        utilizador_id=user.id,
         clube_id=clube_id,
     )
     db.add(nova_inscricao)
