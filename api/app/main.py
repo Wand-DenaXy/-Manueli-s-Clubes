@@ -209,7 +209,6 @@ def list_clubes_admin(
     db: Session = Depends(get_db),
     user: UtilizadorModel = Depends(require_roles("Administrador"))
 ):
-    # Cache separada do /clubes normal
     cached = cache_get("clubes:admin:list")
     if cached is not None:
         return cached
@@ -251,7 +250,7 @@ def list_clubes(
             "telefone": clube.telefone,
             "localidade": clube.localidade,
             "evento_at": clube.evento_at,
-            "organization_id": clube.organization_id,  # ← obrigatório
+            "organization_id": clube.organization_id,
             "organization": {"id": clube.organization.id, "nome": clube.organization.nome} if clube.organization else None,
         }
         for clube in result
