@@ -72,7 +72,9 @@
                 Calendário de eventos
               </li>
             </ul>
-            <button class="plan-btn" disabled>Plano Atual</button>
+              <button class="plan-btn" :disabled="planos[0]?.id <= planoAtualId">
+                {{ fecharbtn(planos[0]?.id, 'Plano Atual') }}
+              </button>
           </div>
 
           <div class="plan-card featured">
@@ -98,9 +100,11 @@
                 Calendário de eventos
               </li>
             </ul>
-            <button class="plan-btn gold" :disabled="loadingPlano === 2" @click="escolherPlano(2)">
-              {{ loadingPlano === 2 ? 'A redirecionar...' : 'Escolher Pro' }}
-            </button>
+              <button class="plan-btn gold"
+                :disabled="planos[1]?.id <= planoAtualId || loadingPlano === planos[1]?.id"
+                @click="escolherPlano(planos[1]?.id)">
+                {{ loadingPlano === planos[1]?.id ? 'A redirecionar...' : fecharbtn(planos[1]?.id, 'Escolher Pro') }}
+              </button>
           </div>
 
           <div class="plan-card">
@@ -125,9 +129,11 @@
                 Calendário de eventos
               </li>
             </ul>
-            <button class="plan-btn" :disabled="loadingPlano === 3" @click="escolherPlano(3)">
-              {{ loadingPlano === 3 ? 'A redirecionar...' : 'Escolher Enterprise' }}
-            </button>
+              <button class="plan-btn"
+                :disabled="planos[2]?.id <= planoAtualId || loadingPlano === planos[2]?.id"
+                @click="escolherPlano(planos[2]?.id)">
+                {{ loadingPlano === planos[2]?.id ? 'A redirecionar...' : fecharbtn(planos[2]?.id, 'Escolher Enterprise') }}
+              </button>
           </div>
         </div>
       </div>
@@ -148,6 +154,25 @@ const token = ref(null)
 const loadingPlano = ref(null)
 const successMsg = ref('')
 const cancelMsg = ref('')
+const planoAtualId = ref(null)
+
+async function buscarUtilizador() {
+  try {
+    const response = await fetch('http://localhost:8000/me', {
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
+    if (!response.ok) return
+    const data = await response.json()
+    planoAtualId.value = data.plano.id
+  } catch (error) {
+    console.error(error)
+  }
+}
+function fecharbtn(planoId, nomeDefault) {
+  if (planoId === planoAtualId.value) return 'Plano Atual'
+  if (planoId < planoAtualId.value) return 'Indisponível'
+  return nomeDefault
+}
 
 async function buscarPrecoPlanos() {
   try {
@@ -209,7 +234,8 @@ async function confirmarPlanoAposStripe(planoId) {
     }
 
     const planoNomes = { 1: 'Free', 2: 'Pro', 3: 'Enterprise' }
-    successMsg.value = `✦ Plano ${planoNomes[planoId] ?? ''} ativado com sucesso!`
+    successMsg.value = ` Plano ${planoNomes[planoId] ?? ''} ativado com sucesso!`
+    await buscarUtilizador()
 
   } catch (error) {
     console.error(error)
@@ -225,6 +251,8 @@ const currentMonthYear = computed(() =>
 onMounted( () => {
   token.value = localStorage.getItem('access_token')
   if (!token.value) { router.push('/login') }
+
+  buscarUtilizador()
   buscarPrecoPlanos()
 
   if (route.query.success === 'true' && route.query.plano_id) {

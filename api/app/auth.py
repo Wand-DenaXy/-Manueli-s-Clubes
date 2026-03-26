@@ -42,6 +42,7 @@ class CreateUserRequest(BaseModel):
     password: str
     tipo_id: int = 1
     plano_id: int = 1
+    organization_id: int = 1 
 
 
 class Token(BaseModel):
@@ -60,8 +61,6 @@ def get_db():
 db_dependency = Annotated[Session, Depends(get_db)]
 
 
-
-
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def register(db: db_dependency, create_user_request: CreateUserRequest):
     user = db.query(UtilizadorModel).filter(
@@ -76,6 +75,7 @@ async def register(db: db_dependency, create_user_request: CreateUserRequest):
         password=hashed_password,
         tipo_id=create_user_request.tipo_id,
         plano_id=create_user_request.plano_id,
+        organization_id=create_user_request.organization_id
     )
     db.add(new_user)
     db.commit()
@@ -110,6 +110,7 @@ def create_access_token(user: UtilizadorModel, expires_delta: timedelta):
         "sub": user.username,
         "id": user.id,
         "tipo_id": user.tipo_id,
+        "organization_id": user.organization_id,
         "exp": datetime.utcnow() + expires_delta,
     }
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
