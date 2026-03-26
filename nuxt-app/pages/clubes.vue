@@ -167,6 +167,7 @@ function getTipoFromToken() {
   try { return jwtDecode(token).tipo_id } catch { return null }
 }
 
+
 async function listarClubes() {
   const tipo_id = getTipoFromToken()
   const token = localStorage.getItem('access_token')
@@ -192,10 +193,7 @@ async function listarClubes() {
           <td><input id="localidade_${c.id}" value="${c.localidade || ''}" class="cell-input" /></td>
           <td><input id="evento_at_${c.id}" value="${c.evento_at || ''}" class="cell-input" /></td>
           <td class="td-actions">
-            ${isAdmin
-              ?
-              `
-              <button class="btn-save" onclick="atualizarClube(${c.id})">
+            <button class="btn-save" onclick="atualizarClube(${c.id})">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
                 <polyline points="17 21 17 13 7 13 7 21"/>
@@ -203,6 +201,9 @@ async function listarClubes() {
               </svg>
               Guardar
             </button> 
+            ${isAdmin
+              ?
+              `
               <button class="btn-del" onclick="apagarClube(${c.id})">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="3 6 5 6 21 6"/>

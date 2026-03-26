@@ -7,6 +7,17 @@ from sqlalchemy.orm import relationship
 from app.database import Base 
 
 
+
+class OrganizationModel(Base):
+    __tablename__ = "organizations"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    nome = Column(String(100), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)  
+
+    utilizadores = relationship("UtilizadorModel", back_populates="organization")
+    clubes = relationship("ClubeModel", back_populates="organization")
+
 class ClubeModel(Base):
     __tablename__ = "clubes"
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -14,11 +25,18 @@ class ClubeModel(Base):
     email = Column(String(150), unique=True)
     telefone = Column(String(20))
     localidade = Column(String(100))
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
     evento_at = Column(Date, nullable=True)
+<<<<<<< Updated upstream
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)  
     utilizador_id = Column(Integer, ForeignKey("utilizador.id"), nullable=False)
     utilizador = relationship("UtilizadorModel", back_populates="clubes")
 
+=======
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    organization = relationship("OrganizationModel", back_populates="clubes")
+>>>>>>> Stashed changes
     mapas = relationship("MapaModel", back_populates="clube", cascade="all, delete")
     membros = relationship("MembroClubeModel",back_populates="clube",cascade="all, delete-orphan")
 
@@ -66,7 +84,10 @@ class UtilizadorModel(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     tipo_id = Column(Integer, ForeignKey("tipouser.id"), nullable=False)
     plano_id = Column(Integer, ForeignKey("planos.id"), nullable=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
 
+
+    organization = relationship("OrganizationModel", back_populates="utilizadores")
     tipo = relationship("TipoUserModel", back_populates="utilizadores")
     plano = relationship("PlanoModel", back_populates="utilizadores")
     clubes_inscritos = relationship("MembroClubeModel",back_populates="utilizador",cascade="all, delete-orphan")
@@ -86,6 +107,19 @@ class MapaModel(Base):
     clube = relationship("ClubeModel", back_populates="mapas")
 
 
+
+class OrganizationCreate(BaseModel):
+    nome: str
+
+class OrganizationResponse(BaseModel):
+    id: int
+    nome: str
+    created_at: datetime | None = None
+
+    class Config:
+        from_attributes = True
+
+
 class ClubeCreate(BaseModel):
     nome: str
     email: str | None = None
@@ -95,8 +129,11 @@ class ClubeCreate(BaseModel):
     utilizador_id: int
 
 
+
 class ClubeResponse(ClubeCreate):
     id: int
+    organization_id: int
+
     class Config:
         from_attributes = True
 
@@ -141,6 +178,7 @@ class UtilizadorResponse(BaseModel):
     username: str
     tipo: TipoUserResponse
     plano: PlanoResponse | None = None
+    organization: OrganizationResponse | None = None 
     created_at: datetime
 
     class Config:

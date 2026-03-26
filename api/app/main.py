@@ -15,7 +15,7 @@ from sqlalchemy.orm import joinedload
 from app.database import get_db, init_db, engine as _engine
 from app.cache import cache_get, cache_set, cache_invalidate
 from app.models import (
-    ClubeModel, ClubeCreate, ClubeResponse,
+    ClubeModel, ClubeCreate, ClubeResponse, OrganizationModel,
     UtilizadorModel, UtilizadorCreate, UtilizadorResponse,
     TipoUserModel, TipoUserCreate, TipoUserResponse,
     MapaModel, MapaCreate, MapaResponse,
@@ -47,6 +47,10 @@ def startup():
     init_db()
     db = next(get_db())
     try:
+        if db.query(OrganizationModel).count() == 0:
+            org = OrganizationModel(nome="Default")
+            db.add(org)
+            db.commit()
         if db.query(TipoUserModel).count() == 0:
             db.add_all([TipoUserModel(descricao=d) for d in ["Administrador", "Gestor", "Cliente"]])
             db.commit()
@@ -165,6 +169,7 @@ def get_me(
             "limite_clubes": db_user.plano.limite_clubes,
             "limite_mapas": db_user.plano.limite_mapas,
         } if db_user.plano else None,
+        "organization": {"id": db_user.organization.id, "nome": db_user.organization.nome} if db_user.organization else None,
         "created_at": db_user.created_at,
     }
 
@@ -195,28 +200,64 @@ def confirmar_plano(
             "limite_clubes": db_user.plano.limite_clubes,
             "limite_mapas": db_user.plano.limite_mapas,
         },
+        "organization": {"id": db_user.organization.id, "nome": db_user.organization.nome} if db_user.organization else None,
         "created_at": db_user.created_at,
     }
 
-@app.post("/clubes", response_model=ClubeResponse)
-def create_clube(   
-    clube: ClubeCreate,
+@app.get("/clubesAdmin", response_model=list[ClubeResponse])
+def list_clubes_admin(
     db: Session = Depends(get_db),
-    user: UtilizadorModel = Depends(require_roles("Administrador","Gestor"))
+    user: UtilizadorModel = Depends(require_roles("Administrador"))
 ):
-    db_clube = ClubeModel(**clube.dict())
-    db.add(db_clube)
-    db.commit()
-    db.refresh(db_clube)
-    cache_invalidate("stats", "clubes:")
-    return {
-        "id": db_clube.id,
-        "nome": db_clube.nome,
-        "email": db_clube.email,
-        "telefone": db_clube.telefone,
-        "localidade": db_clube.localidade,
-        "evento_at": db_clube.evento_at,
-    }
+    # Cache separada do /clubes normal
+    cached = cache_get("clubes:admin:list")
+    if cached is not None:
+        return cached
+    result = db.query(ClubeModel).options(joinedload(ClubeModel.organization)).all()
+    clubes_dict = [
+        {
+            "id": clube.id,
+            "nome": clube.nome,
+            "email": clube.email,
+            "telefone": clube.telefone,
+            "localidade": clube.localidade,
+            "evento_at": clube.evento_at,
+            "organization_id": clube.organization_id,
+            "organization": {"id": clube.organization.id, "nome": clube.organization.nome} if clube.organization else None,
+        }
+        for clube in result
+    ]
+    cache_set("clubes:admin:list", clubes_dict, ttl=30)
+    return clubes_dict
+
+
+@app.get("/clubes", response_model=list[ClubeResponse])
+def list_clubes(
+    db: Session = Depends(get_db),
+    user: UtilizadorModel = Depends(get_current_user)
+):
+    cache_key = f"clubes:org:{user.organization_id}:list"
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached
+    result = db.query(ClubeModel).options(
+        joinedload(ClubeModel.organization)
+    ).filter(ClubeModel.organization_id == user.organization_id).all()
+    clubes_dict = [
+        {
+            "id": clube.id,
+            "nome": clube.nome,
+            "email": clube.email,
+            "telefone": clube.telefone,
+            "localidade": clube.localidade,
+            "evento_at": clube.evento_at,
+            "organization_id": clube.organization_id,  # ← obrigatório
+            "organization": {"id": clube.organization.id, "nome": clube.organization.nome} if clube.organization else None,
+        }
+        for clube in result
+    ]
+    cache_set(cache_key, clubes_dict, ttl=30)
+    return clubes_dict
 
 @app.get("/clubes", response_model=list[ClubeResponse])
 def list_clubes(
@@ -226,7 +267,8 @@ def list_clubes(
     cached = cache_get("clubes:list")
     if cached is not None:
         return cached
-    result = db.query(ClubeModel).all()
+    result = db.query(ClubeModel).filter(
+    ClubeModel.organization_id == user.organization_id).all()
     clubes_dict = [
         {
             "id": clube.id,
@@ -234,7 +276,9 @@ def list_clubes(
             "email": clube.email,
             "telefone": clube.telefone,
             "localidade": clube.localidade,
-            "evento_at": clube.evento_at
+            "evento_at": clube.evento_at,
+            "organization_id": clube.organization_id,
+            "organization": {"id": clube.organization.id, "nome": clube.organization.nome} if clube.organization else None,
         }
         for clube in result
     ]
@@ -246,7 +290,7 @@ def update_clube(
     clube_id: int,
     clube: ClubeCreate,
     db: Session = Depends(get_db),
-    user: UtilizadorModel = Depends(require_roles("Administrador"))
+    user: UtilizadorModel = Depends(require_roles("Administrador","Gestor"))
 ):
     db_clube = db.query(ClubeModel).filter(ClubeModel.id == clube_id).first()
     if not db_clube:
@@ -263,6 +307,8 @@ def update_clube(
         "telefone": db_clube.telefone,
         "localidade": db_clube.localidade,
         "evento_at": db_clube.evento_at,
+        "organization_id": db_clube.organization_id,
+        "organization": {"id": db_clube.organization.id, "nome": db_clube.organization.nome} if db_clube.organization else None,
     }
 
 @app.delete("/clubes/{clube_id}", status_code=204)
@@ -294,6 +340,7 @@ def list_utilizadores(
             "username": utilizador.username,
             "tipo": {"id": utilizador.tipo.id, "descricao": utilizador.tipo.descricao},
             "plano": {"id": utilizador.plano.id, "nome": utilizador.plano.nome, "preco": utilizador.plano.preco, "limite_clubes": utilizador.plano.limite_clubes, "limite_mapas": utilizador.plano.limite_mapas},
+            "organization": {"id": utilizador.organization.id, "nome": utilizador.organization.nome} if utilizador.organization else None,
             "created_at": utilizador.created_at
         }
         for utilizador in result
@@ -338,8 +385,28 @@ def update_utilizador(
         "id": db_utilizador.id,
         "username": db_utilizador.username,
         "tipo": {"id": db_utilizador.tipo.id, "descricao": db_utilizador.tipo.descricao},
+        "organization": {"id": db_utilizador.organization.id, "nome": db_utilizador.organization.nome} if db_utilizador.organization else None,
         "created_at": db_utilizador.created_at,
     }
+
+@app.post("/organizations", status_code=201)
+def create_organization(
+    nome: str,
+    db: Session = Depends(get_db),
+    user: UtilizadorModel = Depends(require_roles("Administrador"))
+):
+    org = OrganizationModel(nome=nome)
+    db.add(org)
+    db.commit()
+    db.refresh(org)
+    return {"id": org.id, "nome": org.nome, "created_at": org.created_at}
+
+@app.get("/organizations")
+def list_organizations(
+    db: Session = Depends(get_db),
+    user: UtilizadorModel = Depends(require_roles("Administrador"))
+):
+    return db.query(OrganizationModel).all()
 
 
 @app.post("/tipouser", response_model=TipoUserResponse)
