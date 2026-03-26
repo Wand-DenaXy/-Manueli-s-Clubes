@@ -27,16 +27,9 @@ class ClubeModel(Base):
     localidade = Column(String(100))
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
     evento_at = Column(Date, nullable=True)
-<<<<<<< Updated upstream
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)  
-    utilizador_id = Column(Integer, ForeignKey("utilizador.id"), nullable=False)
-    utilizador = relationship("UtilizadorModel", back_populates="clubes")
-
-=======
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     
     organization = relationship("OrganizationModel", back_populates="clubes")
->>>>>>> Stashed changes
     mapas = relationship("MapaModel", back_populates="clube", cascade="all, delete")
     membros = relationship("MembroClubeModel",back_populates="clube",cascade="all, delete-orphan")
 
