@@ -284,6 +284,46 @@ def list_clubes(
     cache_set("clubes:list", clubes_dict, ttl=30)
     return clubes_dict
 
+@app.post("/clubes", response_model=ClubeResponse, status_code=201)
+def create_clube(
+    clube: ClubeCreate,
+    db: Session = Depends(get_db),
+    user: UtilizadorModel = Depends(require_roles("Administrador", "Gestor"))
+):
+    if user.plano:
+        limite = user.plano.limite_clubes
+        if limite != -1:
+            total = db.query(ClubeModel).filter(
+                ClubeModel.organization_id == user.organization_id
+            ).count()
+            if total >= limite:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Limite de {limite} clube(s) atingido para o teu plano '{user.plano.nome}'"
+                )
+
+    db_clube = ClubeModel(**clube.dict(), organization_id=user.organization_id)
+    db.add(db_clube)
+
+    try:
+        db.commit()
+        db.refresh(db_clube)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Já existe um clube com esse email")
+
+    cache_invalidate("stats", "clubes:")
+    return {
+        "id": db_clube.id,
+        "nome": db_clube.nome,
+        "email": db_clube.email,
+        "telefone": db_clube.telefone,
+        "localidade": db_clube.localidade,
+        "evento_at": db_clube.evento_at,
+        "organization_id": db_clube.organization_id,
+        "organization": {"id": db_clube.organization.id, "nome": db_clube.organization.nome} if db_clube.organization else None,
+    }
+
 @app.put("/clubes/{clube_id}", response_model=ClubeResponse)
 def update_clube(
     clube_id: int,

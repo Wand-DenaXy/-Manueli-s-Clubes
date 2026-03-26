@@ -229,22 +229,58 @@ async function registaClube() {
   const localidade = document.getElementById('localidade').value.trim()
 
   if (!nome || !email || !telefone || !localidade) {
-    return Swal.fire({ title: 'Erro', text: 'Preenche todos os campos obrigatórios.', icon: 'error', confirmButtonText: 'Ok' })
+    return Swal.fire({
+      title: 'Erro',
+      text: 'Preenche todos os campos obrigatórios.',
+      icon: 'error',
+      confirmButtonText: 'Ok'
+    })
   }
+
   try {
     const res = await fetch(`${getBaseUrl()}/clubes`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
       body: JSON.stringify({ nome, email, telefone, localidade })
     })
+
     if (res.ok) {
-      await Swal.fire({ title: 'Sucesso', text: 'Clube criado com sucesso!', icon: 'success', confirmButtonText: 'Ok' })
-      ;['nome', 'email', 'telefone', 'localidade'].forEach(id => { document.getElementById(id).value = '' })
+      await Swal.fire({
+        title: 'Sucesso',
+        text: 'Clube criado com sucesso!',
+        icon: 'success',
+        confirmButtonText: 'Ok'
+      })
+
+      ;['nome', 'email', 'telefone', 'localidade'].forEach(id => {
+        document.getElementById(id).value = ''
+      })
+
       listarClubes()
-    } else {
-      Swal.fire({ title: 'Erro', text: 'Erro a criar clube: ' + res.statusText, icon: 'error', confirmButtonText: 'Ok' })
+    } 
+    else if (res.status === 403) {
+      Swal.fire({
+        title: 'Limite atingido',
+        text: 'Você atingiu o máximo de clubes possíveis.',
+        icon: 'warning',
+        confirmButtonText: 'Ok'
+      })
     }
-  } catch (e) { handleAjaxError(e) }
+    else {
+      Swal.fire({
+        title: 'Erro',
+        text: 'Erro a criar clube: ' + res.statusText,
+        icon: 'error',
+        confirmButtonText: 'Ok'
+      })
+    }
+  } 
+  catch (e) {
+    handleAjaxError(e)
+  }
 }
 
 async function atualizarClube(id) {

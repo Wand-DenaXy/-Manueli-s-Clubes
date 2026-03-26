@@ -1,6 +1,10 @@
-# Manueli's Clubes
+<div align="center">
 
-**Plataforma full-stack de gestão de clubes** — criar clubes, gerir membros, visualizar eventos no calendário e localizar pontos no mapa interativo.
+# ✦ Manueli's Clubes
+
+### Plataforma SaaS full-stack de gestão de clubes com pagamentos Stripe, multi-tenancy e RBAC
+
+*Criar clubes · Gerir membros · Calendário de eventos · Mapa interativo · Planos de subscrição*
 
 <img width="1000" height="500" alt="ManueliClube" src="https://github.com/user-attachments/assets/786aee57-cdbc-4be2-823b-51c221d7e4b8" />
 
@@ -10,38 +14,67 @@
   <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-15-4169E1?logo=postgresql&logoColor=white" />
   <img alt="Nuxt" src="https://img.shields.io/badge/Nuxt-4.3-00DC82?logo=nuxtdotjs&logoColor=white" />
   <img alt="Vue" src="https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white" />
+  <img alt="Stripe" src="https://img.shields.io/badge/Stripe-Payments-635BFF?logo=stripe&logoColor=white" />
   <img alt="Docker" src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white" />
   <img alt="JWT" src="https://img.shields.io/badge/Auth-JWT%20+%20Argon2-000000?logo=jsonwebtokens&logoColor=white" />
   <img alt="Tests" src="https://img.shields.io/badge/Tests-35%20passed-brightgreen?logo=pytest&logoColor=white" />
 </p>
 
+</div>
+
 ---
 
-## Funcionalidades
+## 🎯 Porquê este projeto?
+
+> A maioria dos projetos de portfólio mostra um CRUD genérico.  
+> Este vai **muito além** — é uma plataforma SaaS multi-tenant com pagamentos reais, RBAC, cache inteligente e 35 testes automatizados.
+
+| Métrica | Valor |
+|---------|-------|
+| 🏗️ Endpoints REST | **27+** (auth, CRUD, stats, pagamentos, perfil) |
+| 🧪 Testes automatizados | **35/35 passed** (pytest + httpx) |
+| 🔐 Segurança | JWT + Argon2id + RBAC (3 roles) |
+| 💳 Pagamentos | Stripe Checkout (subscrições recorrentes) |
+| 🏢 Multi-tenancy | Isolamento de dados por organização |
+| 📊 Dashboard | KPIs em tempo real + Chart.js (line + doughnut) |
+| 🗺️ Mapa interativo | Leaflet.js com marcadores GPS dos clubes |
+| 📅 Calendário | FullCalendar com inscrição em eventos (409 anti-duplicação) |
+| ⚡ Performance | Cache in-memory com TTL + invalidação por prefixo |
+| 🐳 Infraestrutura | Docker Compose (3 containers: DB + API + Frontend) |
+
+---
+
+## ✨ Funcionalidades
 
 ### Dashboard — KPIs e Gráficos em Tempo Real
 
-Painel de administração com 3 cards de métricas (clubes, utilizadores, mapas), gráfico de linha (registos mensais) e doughnut (distribuição por tipo de utilizador) — tudo alimentado pela API com cache.
-
-<!-- 📸 SCREENSHOT: Dashboard com sidebar escura à esquerda, 3 KPI cards no topo (Clubes, Utilizadores, Mapas com ícones e contadores), gráfico de linha Chart.js (registos mensais) à esquerda e gráfico doughnut (distribuição por tipo de user) à direita. Fundo escuro (#1a1a2e). -->
+Painel de administração com cards de métricas (clubes, utilizadores, mapas), gráfico de linha (registos mensais) e doughnut (distribuição por tipo de utilizador) — tudo alimentado pela API com cache.
 
 <img width="1000" height="500" alt="Dashboard" src="nuxt-app/assets/images/DashboardManuel.PNG" />
 
 ---
 
-### Gestão de Clubes — CRUD Completo
+### Gestão de Clubes — CRUD com RBAC e Multi-Tenancy
 
-Tabela interativa com criação, edição inline e eliminação — permissões por tipo de utilizador (admin vê tudo, gestor pode editar). SweetAlert2 para confirmações.
+Tabela interativa com criação, edição inline e eliminação. **Permissões por role** (Admin vê tudo via `/clubesAdmin`, Gestor pode criar/editar na sua organização). Limites de criação enforced pelo plano ativo do utilizador. SweetAlert2 para confirmações.
 
-<!-- 📸 SCREENSHOT: Formulário escuro com 4 campos (nome, email, telefone, localidade) + botão "Guardar", seguido de tabela responsiva com colunas (nome, email, telefone, localidade, ações) e botões Editar/Eliminar por linha. -->
+---
+
+### Planos & Pagamentos — Stripe Checkout
+
+Página de subscrição com 3 tiers (Free · Pro · Enterprise). Pagamento via **Stripe Checkout** com subscrições recorrentes. Após pagamento, o plano é ativado automaticamente e os limites de clubes/mapas são atualizados em tempo real.
+
+| Plano | Preço | Clubes | Mapas |
+|-------|-------|--------|-------|
+| Free | 0 €/mês | 3 | 1 |
+| Pro | 9.99 €/mês | 15 | 20 |
+| Enterprise | 29.99 €/mês | ∞ | ∞ |
 
 ---
 
 ### Mapa Interativo — Leaflet.js
 
 Mapa dark-themed com marcadores dos clubes, painel lateral com lista de pontos e formulário para adicionar novas localizações por coordenadas GPS.
-
-<!-- 📸 SCREENSHOT: Layout 3 painéis — lista à esquerda, mapa Leaflet ao centro (basemap escuro CartoDB dark_all com marcadores), formulário à direita (descrição, latitude, longitude, dropdown clube_id). -->
 
 <img width="1000" height="500" alt="Mapas" src="nuxt-app/assets/images/ManuelMapas.PNG" />
 
@@ -51,15 +84,17 @@ Mapa dark-themed com marcadores dos clubes, painel lateral com lista de pontos e
 
 Calendário mensal com eventos dos clubes em cores diferentes. Clicar num evento abre um painel com detalhes e botão "Ingressar" — inscrição com proteção de duplicação (HTTP 409).
 
-<!-- 📸 SCREENSHOT: Grelha FullCalendar mensal com blocos de eventos coloridos. Painel slide-in à direita com nome do clube, data, localidade e botão "Ingressar". -->
-
 ---
 
-### Autenticação — JWT + Argon2
+### Autenticação — JWT + Argon2 + RBAC
 
-Login com username, password e seleção de tipo de utilizador. Passwords hashed com Argon2id. Token JWT (30 min) enviado no header `Authorization: Bearer`.
+Login com username, password e seleção de tipo de utilizador. Passwords hashed com Argon2id. Token JWT (30 min) no header `Authorization: Bearer`. **3 roles com permissões granulares:**
 
-<!-- 📸 SCREENSHOT: Layout 50/50 — formulário escuro à esquerda (username, password, dropdown tipo) com botão "Login", imagem/banner à direita. -->
+| Role | Permissões |
+|------|-----------|
+| Administrador | CRUD completo, gestão de utilizadores, ver todas as organizações |
+| Gestor | Criar/editar clubes e mapas na sua organização |
+| Cliente | Visualizar, ingressar em clubes |
 
 <img width="1000" height="500" alt="Login" src="nuxt-app/assets/images/ManuelLogin.PNG" />
 
@@ -69,11 +104,9 @@ Login com username, password e seleção de tipo de utilizador. Passwords hashed
 
 Página inicial com hero section, call-to-action e barra de estatísticas em tempo real (total de clubes, utilizadores, mapas). Página "Sobre nós" com missão, valores e equipa.
 
-<!-- 📸 SCREENSHOT: Hero escuro com título grande, subtítulo, 2 botões CTA (Login / Ver Clubes) e barra de stats (3 contadores animados). -->
-
 ---
 
-## Quick Start
+## 🚀 Quick Start
 
 ```bash
 # 1. Clonar
@@ -82,7 +115,8 @@ cd Manueli-s-Clubes
 
 # 2. Configurar variáveis de ambiente
 #    → .env (raiz): DB_USER, DB_PASSWORD, DB_NAME
-#    → api/.env:   MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DATABASE, SECRET_KEY, ALGORITHM
+#    → api/.env:   MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_PASSWORD,
+#                  MYSQL_DATABASE, SECRET_KEY, ALGORITHM, STRIPE_SECRET_KEY
 
 # 3. Lançar tudo
 docker compose up --build
@@ -96,7 +130,7 @@ docker compose up --build
 
 ---
 
-## Testes — 35/35 Passed
+## 🧪 Testes — 35/35 Passed
 
 ```bash
 cd api && pytest tests/ -v --tb=short
@@ -113,15 +147,16 @@ tests/test_stats.py        ✅ 5 passed   (stats, statstpuser, registrations, au
 
 ---
 
-## Tech Stack
+## 🛠️ Tech Stack
 
 | Camada     | Tecnologia                         | Versão    |
-|------------|------------------------------------|-----------|
+|------------|------------------------------------|-----------| 
 | Runtime    | Python                             | 3.11      |
 | API        | FastAPI + Uvicorn                  | 0.115.6   |
 | ORM        | SQLAlchemy                         | 2.0.36    |
 | DB         | PostgreSQL (psycopg2)              | 15+       |
 | Auth       | python-jose (JWT) + Argon2         | —         |
+| Payments   | Stripe API (Checkout + subscrições)| 8.4.0     |
 | Cache      | In-memory dict (TTL + invalidação) | —         |
 | Frontend   | Nuxt 4 (Vue 3, SSR)               | 4.3.x     |
 | UI         | Bootstrap 5, SweetAlert2           | —         |
@@ -130,7 +165,7 @@ tests/test_stats.py        ✅ 5 passed   (stats, statstpuser, registrations, au
 
 ---
 
-## Estrutura do Projeto
+## 📁 Estrutura do Projeto
 
 ```
 -Manueli-s-Clubes/
@@ -140,9 +175,9 @@ tests/test_stats.py        ✅ 5 passed   (stats, statstpuser, registrations, au
 ├── api/                             # Backend (FastAPI)
 │   ├── Dockerfile                   # python:3.11-slim → uvicorn :8000
 │   ├── app/
-│   │   ├── main.py                  # CRUD routes, stats, inscrições, cache
-│   │   ├── auth.py                  # JWT + Argon2
-│   │   ├── models.py               # ORM + Pydantic schemas
+│   │   ├── main.py                  # CRUD, stats, inscrições, pagamentos, cache, RBAC
+│   │   ├── auth.py                  # JWT + Argon2 + get_current_user
+│   │   ├── models.py               # 7 ORM models + Pydantic schemas
 │   │   ├── database.py             # PostgreSQL connection
 │   │   ├── cache.py                # TTL + invalidação por prefixo
 │   │   └── requirements.txt
@@ -154,11 +189,14 @@ tests/test_stats.py        ✅ 5 passed   (stats, statstpuser, registrations, au
     │   ├── index.vue                # Landing — stats públicas
     │   ├── login.vue                # Auth
     │   ├── dashboard.vue            # KPIs + Chart.js
-    │   ├── clubes.vue               # CRUD table
+    │   ├── clubes.vue               # CRUD table (scoped por organização)
     │   ├── mapas.vue                # Leaflet map
     │   ├── calendario.vue           # FullCalendar + inscrição
+    │   ├── planos.vue               # Subscrições Stripe (Free/Pro/Enterprise)
     │   └── aboutus.vue              # Sobre nós
-    └── components/Header.vue        # Nav global
+    └── components/
+        ├── Header.vue               # Header global
+        └── Navbar.vue               # Nav sidebar
 ```
 
 ---
@@ -177,11 +215,13 @@ C4Context
     title System Context — Manueli's Clubes
 
     Person(user, "Utilizador", "Membro, Gestor ou Admin")
-    System(sys, "Manueli's Clubes", "Plataforma de gestão de clubes")
+    System(sys, "Manueli's Clubes", "Plataforma SaaS de gestão de clubes")
+    System_Ext(stripe, "Stripe", "Processamento de pagamentos")
     SystemDb(db, "PostgreSQL", "Armazenamento persistente")
 
     Rel(user, sys, "HTTPS / JSON")
     Rel(sys, db, "SQL via SQLAlchemy ORM")
+    Rel(sys, stripe, "API REST (Checkout Sessions)")
 ```
 
 ### Nível 2 — Containers
@@ -197,17 +237,20 @@ C4Container
     }
 
     Container_Boundary(backend, "Backend") {
-        Container(api, "FastAPI", "Python 3.10+, Uvicorn", "API REST. Auth JWT, CRUD, inscrições, stats. Cache in-memory com TTL.")
+        Container(api, "FastAPI", "Python 3.11+, Uvicorn", "API REST. Auth JWT, CRUD, inscrições, stats, pagamentos Stripe. Cache in-memory com TTL. RBAC com require_roles().")
         Container(auth_mod, "Auth Module", "python-jose, passlib[argon2]", "Registo, login, emissão/validação JWT.")
         Container(cache_mod, "Cache Module", "cache.py, dict + time.monotonic", "Cache in-memory com TTL por key e invalidação por prefixo.")
     }
 
-    ContainerDb(db, "PostgreSQL", "psycopg2", "5 tabelas: clubes, utilizador, tipouser, mapas, membro_clube")
+    System_Ext(stripe, "Stripe API", "Checkout Sessions + Subscriptions")
+
+    ContainerDb(db, "PostgreSQL", "psycopg2", "7 tabelas: clubes, utilizador, tipouser, mapas, membro_clube, planos, organizations")
 
     Rel(user, nuxt, "HTTPS :3000")
     Rel(nuxt, api, "fetch HTTP/JSON :8000", "Authorization: Bearer JWT")
     Rel(api, auth_mod, "Depends(get_current_user)")
     Rel(api, cache_mod, "cache_get / cache_set / cache_invalidate")
+    Rel(api, stripe, "Stripe SDK")
     Rel(api, db, "SQLAlchemy Session")
     Rel(auth_mod, db, "SQLAlchemy Session")
 ```
@@ -219,19 +262,21 @@ C4Component
     title Component Diagram — FastAPI Backend
 
     Container_Boundary(api, "FastAPI Application") {
-        Component(main, "main.py", "FastAPI Router", "CRUD clubes/utilizadores/tipouser/mapas + stats + inscrições. CORS middleware. Cache get/set nos GETs, invalidate nos writes. Startup init_db().")
+        Component(main, "main.py", "FastAPI Router", "CRUD clubes/utilizadores/tipouser/mapas/planos + stats + inscrições + Stripe checkout. CORS middleware. RBAC require_roles(). Cache get/set nos GETs, invalidate nos writes. Startup init_db() + seed planos/tipos/org.")
         Component(auth, "auth.py", "APIRouter /auth", "POST /auth/ (register), POST /auth/token (login). Argon2 hash/verify. JWT encode/decode. get_current_user dependency.")
-        Component(models, "models.py", "SQLAlchemy + Pydantic", "5 ORM models + relationships + cascade config. Pydantic schemas para request/response validation.")
+        Component(models, "models.py", "SQLAlchemy + Pydantic", "7 ORM models + relationships + cascade config. Pydantic schemas para request/response validation.")
         Component(database, "database.py", "Engine + SessionLocal", "Connection string via env vars. get_db() generator. init_db() → Base.metadata.create_all().")
         Component(cache, "cache.py", "dict + TTL", "cache_get(key), cache_set(key, value, ttl), cache_invalidate(*prefixes). TTL via time.monotonic().")
     }
 
     ContainerDb(db, "PostgreSQL")
+    System_Ext(stripe, "Stripe API")
 
     Rel(main, auth, "include_router(auth.router)")
     Rel(main, models, "importa Models + Schemas")
     Rel(main, database, "Depends(get_db)")
     Rel(main, cache, "cache_get / cache_set / cache_invalidate")
+    Rel(main, stripe, "stripe.checkout.Session.create()")
     Rel(auth, models, "importa UtilizadorModel")
     Rel(auth, database, "SessionLocal()")
     Rel(database, db, "psycopg2 connection pool")
@@ -244,10 +289,28 @@ C4Component
 
 ```mermaid
 erDiagram
+    organizations ||--o{ utilizador : "1:N"
+    organizations ||--o{ clubes : "1:N"
     tipouser ||--o{ utilizador : "1:N"
+    planos ||--o{ utilizador : "1:N"
     utilizador ||--o{ membro_clube : "1:N"
     clubes ||--o{ membro_clube : "1:N"
     clubes ||--o{ mapas : "1:N"
+
+    organizations {
+        int id PK
+        varchar(100) nome
+        datetime created_at
+    }
+
+    planos {
+        int id PK
+        varchar(100) nome
+        float preco
+        int limite_clubes
+        int limite_mapas
+        datetime created_at
+    }
 
     tipouser {
         int id PK
@@ -260,6 +323,8 @@ erDiagram
         varchar(255) password
         datetime created_at
         int tipo_id FK
+        int plano_id FK
+        int organization_id FK
     }
 
     clubes {
@@ -270,6 +335,7 @@ erDiagram
         varchar(100) localidade
         date evento_at
         datetime created_at
+        int organization_id FK
     }
 
     membro_clube {
@@ -288,7 +354,7 @@ erDiagram
     }
 ```
 
-> **Constraint:** `UniqueConstraint("utilizador_id", "clube_id")` em `membro_clube` — impede inscrição duplicada a nível de BD.
+> **Constraints:** `UniqueConstraint("utilizador_id", "clube_id")` em `membro_clube` — impede inscrição duplicada a nível de BD. `unique=True` em `utilizador.username` e `clubes.email`.
 
 </details>
 
@@ -326,32 +392,17 @@ def cache_invalidate(*prefixes: str) -> None:
 
 ### Tabela de TTL e Invalidação
 
-| Endpoint GET        | Cache Key              | TTL    | Invalidado por                           |
-|---------------------|------------------------|--------|------------------------------------------|
-| `GET /stats`        | `stats`                | 60 s   | POST/PUT/DELETE clubes, utilizadores, mapas, tipouser |
-| `GET /statstpuser`  | `statstpuser`          | 60 s   | POST/PUT/DELETE utilizadores, tipouser   |
-| `GET /registrations`| `registrations:{year}` | 300 s  | DELETE/PUT utilizadores                  |
-| `GET /clubes`       | `clubes:list`          | 30 s   | POST/PUT/DELETE clubes                   |
-| `GET /tipouser`     | `tipouser:list`        | 120 s  | POST/PUT/DELETE tipouser                 |
-| `GET /mapas`        | `mapas:list`           | 60 s   | POST/PUT/DELETE mapas                    |
-
-### Fluxo de Leitura (GET)
-
-```python
-cached = cache_get("stats")
-if cached is not None:
-    return cached          # responde sem tocar na BD
-result = { ... }          # query à BD
-cache_set("stats", result, ttl=60)
-return result
-```
-
-### Fluxo de Escrita (POST/PUT/DELETE)
-
-```python
-cache_invalidate("stats", "clubes:")
-# Remove todas as keys que começam com "stats" ou "clubes:"
-```
+| Endpoint GET          | Cache Key              | TTL    | Invalidado por                           |
+|-----------------------|------------------------|--------|------------------------------------------|
+| `GET /stats`          | `stats`                | 60 s   | POST/PUT/DELETE clubes, utilizadores, mapas, tipouser |
+| `GET /statstpuser`    | `statstpuser`          | 60 s   | POST/PUT/DELETE utilizadores, tipouser   |
+| `GET /registrations`  | `registrations:{year}` | 300 s  | DELETE/PUT utilizadores                  |
+| `GET /clubes`         | `clubes:org:{id}:list` | 30 s   | POST/PUT/DELETE clubes                   |
+| `GET /clubesAdmin`    | `clubes:admin:list`    | 30 s   | POST/PUT/DELETE clubes                   |
+| `GET /tipouser`       | `tipouser:list`        | 120 s  | POST/PUT/DELETE tipouser                 |
+| `GET /mapas`          | `mapas:list`           | 60 s   | POST/PUT/DELETE mapas                    |
+| `GET /planos`         | `planos:list`          | 120 s  | POST/PUT/DELETE planos                   |
+| `GET /utilizadores`   | `utilizadores:list`    | 30 s   | PUT /me/plano, DELETE utilizadores       |
 
 </details>
 
@@ -365,23 +416,31 @@ cache_invalidate("stats", "clubes:")
 | POST   | `/auth/`       | `{username, password, tipo_id}`            | `201` message     | —    |
 | POST   | `/auth/token`  | FormData: `username, password, tipo_id`    | `{access_token, token_type}` | — |
 
+### Perfil (`/me`)
+
+| Método | Rota              | Body / Params | Response            | Auth | Status Codes |
+|--------|--------------------|---------------|---------------------|------|--------------|
+| GET    | `/me`              | —             | `UtilizadorResponse`| JWT  | 200          |
+| PUT    | `/me/plano/{id}`   | —             | `UtilizadorResponse`| JWT  | 200, 404     |
+
 ### Clubes (`/clubes`)
 
-| Método | Rota                     | Body / Params       | Response            | Auth  | Status Codes     | Cache                              |
-|--------|--------------------------|---------------------|---------------------|-------|------------------|------------------------------------|
-| POST   | `/clubes`                | `ClubeCreate`       | `ClubeResponse`     | JWT   | 200              | invalidate `stats`, `clubes:`      |
-| GET    | `/clubes`                | —                   | `[ClubeResponse]`   | JWT   | 200              | `clubes:list` TTL 30 s             |
-| PUT    | `/clubes/{id}`           | `ClubeCreate`       | `ClubeResponse`     | JWT   | 200, 404         | invalidate `stats`, `clubes:`      |
-| DELETE | `/clubes/{id}`           | —                   | —                   | JWT   | 204, 404         | invalidate `stats`, `clubes:`      |
-| POST   | `/clubes/{id}/ingressar` | —                   | `IngressarResponse` | JWT   | 201, 404, 409    | —                                  |
+| Método | Rota                     | Body / Params       | Response            | Auth         | Status Codes     | Cache                              |
+|--------|--------------------------|---------------------|---------------------|--------------|------------------|-------------------------------------|
+| POST   | `/clubes`                | `ClubeCreate`       | `ClubeResponse`     | Admin/Gestor | 201, 403, 409    | invalidate `stats`, `clubes:`       |
+| GET    | `/clubes`                | —                   | `[ClubeResponse]`   | JWT          | 200              | `clubes:org:{id}:list` TTL 30 s     |
+| GET    | `/clubesAdmin`           | —                   | `[ClubeResponse]`   | Admin        | 200              | `clubes:admin:list` TTL 30 s        |
+| PUT    | `/clubes/{id}`           | `ClubeCreate`       | `ClubeResponse`     | Admin/Gestor | 200, 404         | invalidate `stats`, `clubes:`       |
+| DELETE | `/clubes/{id}`           | —                   | —                   | Admin        | 204, 404         | invalidate `stats`, `clubes:`       |
+| POST   | `/clubes/{id}/ingressar` | —                   | `IngressarResponse` | JWT          | 201, 404, 409    | —                                   |
 
 ### Utilizadores (`/utilizadores`)
 
-| Método | Rota                  | Body / Params       | Response               | Auth | Status Codes | Cache                                        |
-|--------|-----------------------|---------------------|------------------------|------|--------------|----------------------------------------------|
-| GET    | `/utilizadores`       | —                   | `[UtilizadorResponse]` | JWT  | 200          | `utilizadores:list` TTL 30 s                 |
-| PUT    | `/utilizadores/{id}`  | `UtilizadorCreate`  | `UtilizadorResponse`   | JWT  | 200, 404     | invalidate `stats`, `statstpuser`            |
-| DELETE | `/utilizadores/{id}`  | —                   | —                      | JWT  | 204, 404     | invalidate `stats`, `statstpuser`, `registrations:` |
+| Método | Rota                  | Body / Params       | Response               | Auth  | Status Codes | Cache                                        |
+|--------|-----------------------|---------------------|------------------------|-------|--------------|----------------------------------------------|
+| GET    | `/utilizadores`       | —                   | `[UtilizadorResponse]` | Admin | 200          | `utilizadores:list` TTL 30 s                 |
+| PUT    | `/utilizadores/{id}`  | `UtilizadorCreate`  | `UtilizadorResponse`   | Admin | 200, 404     | invalidate `stats`, `statstpuser`            |
+| DELETE | `/utilizadores/{id}`  | —                   | —                      | Admin | 204, 404     | invalidate `stats`, `statstpuser`, `registrations:` |
 
 ### Tipos de Utilizador (`/tipouser`)
 
@@ -394,12 +453,34 @@ cache_invalidate("stats", "clubes:")
 
 ### Mapas (`/mapas`)
 
-| Método | Rota           | Body / Params | Response          | Auth | Status Codes | Cache                          |
-|--------|----------------|---------------|-------------------|------|--------------|--------------------------------|
-| POST   | `/mapas`       | `MapaCreate`  | `MapaResponse`    | JWT  | 200, 404     | invalidate `stats`, `mapas:`   |
-| GET    | `/mapas`       | —             | `[MapaResponse]`  | JWT  | 200          | `mapas:list` TTL 60 s          |
-| PUT    | `/mapas/{id}`  | `MapaCreate`  | `MapaResponse`    | JWT  | 200, 404     | invalidate `stats`, `mapas:`   |
-| DELETE | `/mapas/{id}`  | —             | message           | JWT  | 200, 404     | invalidate `stats`, `mapas:`   |
+| Método | Rota           | Body / Params | Response          | Auth         | Status Codes | Cache                          |
+|--------|----------------|---------------|-------------------|--------------|--------------|--------------------------------|
+| POST   | `/mapas`       | `MapaCreate`  | `MapaResponse`    | Admin/Gestor | 200, 404     | invalidate `stats`, `mapas:`   |
+| GET    | `/mapas`       | —             | `[MapaResponse]`  | JWT          | 200          | `mapas:list` TTL 60 s          |
+| PUT    | `/mapas/{id}`  | `MapaCreate`  | `MapaResponse`    | Admin/Gestor | 200, 404     | invalidate `stats`, `mapas:`   |
+| DELETE | `/mapas/{id}`  | —             | message           | Admin/Gestor | 200, 404     | invalidate `stats`, `mapas:`   |
+
+### Planos (`/planos`) 🆕
+
+| Método | Rota           | Body / Params | Response           | Auth | Status Codes | Cache                  |
+|--------|----------------|---------------|--------------------|------|--------------|------------------------|
+| GET    | `/planos`      | —             | `[PlanoResponse]`  | —    | 200          | `planos:list` TTL 120 s|
+| POST   | `/planos`      | `PlanoCreate` | `PlanoResponse`    | JWT  | 201          | invalidate `planos:`   |
+| PUT    | `/planos/{id}` | `PlanoCreate` | `PlanoResponse`    | JWT  | 200, 404     | invalidate `planos:`   |
+| DELETE | `/planos/{id}` | —             | —                  | JWT  | 204, 404     | invalidate `planos:`   |
+
+### Organizations (`/organizations`) 🆕
+
+| Método | Rota              | Body / Params | Response  | Auth  | Status Codes |
+|--------|--------------------|---------------|-----------|-------|--------------|
+| POST   | `/organizations`   | `nome`        | Org data  | Admin | 201          |
+| GET    | `/organizations`   | —             | `[Org]`   | Admin | 200          |
+
+### Pagamentos (Stripe) 🆕
+
+| Método | Rota                      | Body / Params    | Response     | Auth | Status Codes     |
+|--------|---------------------------|------------------|--------------|------|------------------|
+| POST   | `/create-checkout-session` | `{plano_id}`    | `{url}`      | JWT  | 200, 400, 404, 502 |
 
 ### Estatísticas
 
@@ -415,7 +496,7 @@ cache_invalidate("stats", "clubes:")
 <summary><strong>Pydantic Schemas (Contratos)</strong></summary>
 
 ```python
-# Request
+# ──── Request ────
 class ClubeCreate(BaseModel):
     nome: str
     email: str | None = None
@@ -437,15 +518,39 @@ class MapaCreate(BaseModel):
     longitude: float
     clube_id: int
 
-# Response
-class ClubeResponse(ClubeCreate):        # herda campos + id
-    id: int
+class PlanoCreate(BaseModel):         # 🆕
+    nome: str
+    preco: float = 0.0
+    limite_clubes: int = -1
+    limite_mapas: int = -1
 
-class UtilizadorResponse(BaseModel):      # inclui nested TipoUserResponse
+class CheckoutRequest(BaseModel):     # 🆕
+    plano_id: int
+
+# ──── Response ────
+class ClubeResponse(ClubeCreate):
+    id: int
+    organization_id: int              # 🆕 multi-tenancy
+
+class UtilizadorResponse(BaseModel):
     id: int
     username: str
     tipo: TipoUserResponse
+    plano: PlanoResponse | None       # 🆕 plano ativo
+    organization: OrganizationResponse | None  # 🆕
     created_at: datetime
+
+class PlanoResponse(BaseModel):       # 🆕
+    id: int
+    nome: str | None
+    preco: float
+    limite_clubes: int
+    limite_mapas: int
+
+class OrganizationResponse(BaseModel): # 🆕
+    id: int
+    nome: str
+    created_at: datetime | None
 
 class MapaResponse(BaseModel):
     id: int
@@ -455,9 +560,9 @@ class MapaResponse(BaseModel):
     clube_id: int
 
 class IngressarResponse(BaseModel):
-    mensagem: str
-    clube_id: int
-    clube_nome: str
+    mensagem:    str
+    clube_id:    int
+    clube_nome:  str
     inscrito_em: datetime
 ```
 
@@ -494,26 +599,36 @@ sequenceDiagram
     F->>F: Armazena token + navigateTo("/dashboard")
 ```
 
+### Stripe Checkout — Subscrição de Plano 🆕
+
 ```mermaid
 sequenceDiagram
     actor U as Utilizador
-    participant F as Nuxt Frontend
-    participant A as FastAPI /auth
+    participant P as Nuxt (planos.vue)
+    participant API as FastAPI
+    participant S as Stripe API
     participant DB as PostgreSQL
-    Note over F,A: Pedidos subsequentes — header Authorization enviado pelo frontend
 
-    F->>A: GET /clubes (Authorization: Bearer token)
-    A->>A: jwt.decode(token, SECRET_KEY, [HS256])
-    alt Token inválido/expirado
-        A-->>F: 401 Unauthorized
-    else Token válido
-        A->>DB: SELECT * FROM clubes
-        DB-->>A: [rows]
-        A-->>F: 200 [ClubeResponse]
-    end
+    U->>P: Clica "Escolher Pro"
+    P->>API: POST /create-checkout-session {plano_id: 2} + Bearer JWT
+    API->>DB: SELECT plano WHERE id = 2
+    DB-->>API: {nome: "Pro", preco: 9.99}
+    API->>S: stripe.checkout.Session.create(mode=subscription)
+    S-->>API: {url: "https://checkout.stripe.com/..."}
+    API-->>P: {url}
+    P->>P: window.location.href = url
+
+    Note over U,S: Utilizador completa pagamento no Stripe
+
+    S-->>P: Redirect → /planos?success=true&plano_id=2
+    P->>API: PUT /me/plano/2 + Bearer JWT
+    API->>DB: UPDATE utilizador SET plano_id = 2
+    DB-->>API: ✓
+    API-->>P: UtilizadorResponse (plano atualizado)
+    P->>P: "Plano Pro ativado com sucesso!"
 ```
 
-### CRUD — Criar Clube (com invalidação de cache)
+### CRUD — Criar Clube (com RBAC + limites de plano)
 
 ```mermaid
 sequenceDiagram
@@ -525,21 +640,22 @@ sequenceDiagram
 
     U->>F: Preenche formulário (nome, email, tel, localidade, evento_at)
     F->>API: POST /clubes {ClubeCreate} + Bearer JWT
-    API->>API: Depends(get_current_user) → valida JWT
-    API->>DB: INSERT INTO clubes VALUES(...)
-    DB-->>API: clube row
-    API->>C: cache_invalidate("stats", "clubes:")
-    C->>C: Remove keys com prefixo "stats" e "clubes:"
-    API-->>F: 200 ClubeResponse {id, nome, ...}
-    F->>F: Swal.fire("Sucesso")
-    F->>API: GET /clubes + Bearer JWT
-    API->>C: cache_get("clubes:list")
-    C-->>API: None (cache miss)
-    API->>DB: SELECT * FROM clubes
-    DB-->>API: [rows]
-    API->>C: cache_set("clubes:list", rows, ttl=30)
-    API-->>F: 200 [ClubeResponse]
-    F->>F: Atualiza tabela reativa
+    API->>API: require_roles("Administrador", "Gestor")
+
+    alt Role não autorizada
+        API-->>F: 403 "Sem permissão"
+    else Role válida
+        API->>DB: SELECT COUNT(*) FROM clubes WHERE organization_id = ?
+        alt Limite do plano atingido
+            API-->>F: 403 "Limite de X clube(s) atingido"
+        else Dentro do limite
+            API->>DB: INSERT INTO clubes VALUES(...)
+            DB-->>API: clube row
+            API->>C: cache_invalidate("stats", "clubes:")
+            API-->>F: 201 ClubeResponse {id, nome, ...}
+            F->>F: Swal.fire("Sucesso")
+        end
+    end
 ```
 
 ### Inscrição em Clube (via Calendário)
@@ -829,14 +945,6 @@ pytest tests/ --cov=. --cov-report=term-missing
 **Status:** Aceite  
 **Decisão:** JWT no header `Authorization: Bearer <token>`. Login devolve `{access_token, token_type}`, frontend gere armazenamento. Stateless, compatível com `OAuth2PasswordBearer` do FastAPI.
 
-```python
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
-
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
-    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    return {"username": payload.get("sub"), "id": payload.get("id"), "tipo_id": payload.get("tipo_id")}
-```
-
 ### ADR-004: UniqueConstraint em membro_clube
 
 **Status:** Aceite  
@@ -861,6 +969,21 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
 
 **Status:** Aceite  
 **Decisão:** `dict` Python com `time.monotonic()`. Zero dependências externas, latência ~0 para cache hits, invalidação por prefixo em writes. Redis evitado por overhead operacional desnecessário para single-instance.
+
+### ADR-009: Stripe Checkout para pagamentos 🆕
+
+**Status:** Aceite  
+**Decisão:** Stripe Checkout Sessions com modo `subscription` para planos recorrentes. Evita complexidade de PCI compliance — toda a UI de pagamento é hosted pelo Stripe. Redirect-based flow com `success_url` e `cancel_url` que inclui `plano_id`.
+
+### ADR-010: Multi-tenancy por organização 🆕
+
+**Status:** Aceite  
+**Decisão:** Cada utilizador pertence a uma `organization`. Clubes são scoped à organização do utilizador (`ClubeModel.organization_id`). Admins podem ver todos via `/clubesAdmin`. Isolamento via query filter `WHERE organization_id = user.organization_id`.
+
+### ADR-011: RBAC com require_roles() 🆕
+
+**Status:** Aceite  
+**Decisão:** Middleware `require_roles(*roles)` como FastAPI Dependency. 3 roles: Administrador (CRUD total), Gestor (criar/editar), Cliente (leitura). Enforcement a nível de endpoint, não de frontend.
 
 </details>
 
@@ -972,6 +1095,8 @@ MYSQL_PASSWORD=<password>
 MYSQL_DATABASE=clubes_db
 SECRET_KEY=<random-256-bit-hex>
 ALGORITHM=HS256
+STRIPE_SECRET_KEY=sk_test_...
+FRONTEND_URL=http://localhost:3000
 ```
 
 **`.env`** (raiz) — Docker Compose:
