@@ -84,7 +84,6 @@ class UtilizadorModel(Base):
     tipo = relationship("TipoUserModel", back_populates="utilizadores")
     plano = relationship("PlanoModel", back_populates="utilizadores")
     clubes_inscritos = relationship("MembroClubeModel",back_populates="utilizador",cascade="all, delete-orphan")
-    clubes = relationship("ClubeModel", back_populates="utilizador")
 
 
 class MapaModel(Base):
@@ -119,7 +118,6 @@ class ClubeCreate(BaseModel):
     telefone: str | None = None
     localidade: str | None = None
     evento_at: Optional[date] = None
-    utilizador_id: int
 
 
 
