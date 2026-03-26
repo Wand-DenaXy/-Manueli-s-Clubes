@@ -60,7 +60,7 @@ Tabela interativa com criação, edição inline e eliminação. **Permissões p
 
 ---
 
-### Planos e Pagamentos — Stripe Checkout
+### Planos & Pagamentos — Stripe Checkout
 
 Página de subscrição com 3 tiers (Free · Pro · Enterprise). Pagamento via **Stripe Checkout** com subscrições recorrentes. Após pagamento, o plano é ativado automaticamente e os limites de clubes/mapas são atualizados em tempo real.
 
@@ -106,7 +106,7 @@ Página inicial com hero section, call-to-action e barra de estatísticas em tem
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ```bash
 # 1. Clonar
@@ -130,7 +130,7 @@ docker compose up --build
 
 ---
 
-## 🧪 Testes — 35/35 Passed
+## Testes — 35/35 Passed
 
 ```bash
 cd api && pytest tests/ -v --tb=short
@@ -165,7 +165,7 @@ tests/test_stats.py        ✅ 5 passed   (stats, statstpuser, registrations, au
 
 ---
 
-## 📁 Estrutura do Projeto
+## Estrutura do Projeto
 
 ```
 -Manueli-s-Clubes/
@@ -460,7 +460,7 @@ def cache_invalidate(*prefixes: str) -> None:
 | PUT    | `/mapas/{id}`  | `MapaCreate`  | `MapaResponse`    | Admin/Gestor | 200, 404     | invalidate `stats`, `mapas:`   |
 | DELETE | `/mapas/{id}`  | —             | message           | Admin/Gestor | 200, 404     | invalidate `stats`, `mapas:`   |
 
-### Planos (`/planos`) 🆕
+### Planos (`/planos`)
 
 | Método | Rota           | Body / Params | Response           | Auth | Status Codes | Cache                  |
 |--------|----------------|---------------|--------------------|------|--------------|------------------------|
@@ -469,14 +469,14 @@ def cache_invalidate(*prefixes: str) -> None:
 | PUT    | `/planos/{id}` | `PlanoCreate` | `PlanoResponse`    | JWT  | 200, 404     | invalidate `planos:`   |
 | DELETE | `/planos/{id}` | —             | —                  | JWT  | 204, 404     | invalidate `planos:`   |
 
-### Organizations (`/organizations`) 🆕
+### Organizations (`/organizations`)
 
 | Método | Rota              | Body / Params | Response  | Auth  | Status Codes |
 |--------|--------------------|---------------|-----------|-------|--------------|
 | POST   | `/organizations`   | `nome`        | Org data  | Admin | 201          |
 | GET    | `/organizations`   | —             | `[Org]`   | Admin | 200          |
 
-### Pagamentos (Stripe) 🆕
+### Pagamentos (Stripe)
 
 | Método | Rota                      | Body / Params    | Response     | Auth | Status Codes     |
 |--------|---------------------------|------------------|--------------|------|------------------|
@@ -518,36 +518,36 @@ class MapaCreate(BaseModel):
     longitude: float
     clube_id: int
 
-class PlanoCreate(BaseModel):         # 🆕
+class PlanoCreate(BaseModel):         
     nome: str
     preco: float = 0.0
     limite_clubes: int = -1
     limite_mapas: int = -1
 
-class CheckoutRequest(BaseModel):     # 🆕
+class CheckoutRequest(BaseModel):     
     plano_id: int
 
 # ──── Response ────
 class ClubeResponse(ClubeCreate):
     id: int
-    organization_id: int              # 🆕 multi-tenancy
+    organization_id: int              # multi-tenancy
 
 class UtilizadorResponse(BaseModel):
     id: int
     username: str
     tipo: TipoUserResponse
-    plano: PlanoResponse | None       # 🆕 plano ativo
-    organization: OrganizationResponse | None  # 🆕
+    plano: PlanoResponse | None      
+    organization: OrganizationResponse | None  
     created_at: datetime
 
-class PlanoResponse(BaseModel):       # 🆕
+class PlanoResponse(BaseModel):      
     id: int
     nome: str | None
     preco: float
     limite_clubes: int
     limite_mapas: int
 
-class OrganizationResponse(BaseModel): # 🆕
+class OrganizationResponse(BaseModel): 
     id: int
     nome: str
     created_at: datetime | None
@@ -599,7 +599,7 @@ sequenceDiagram
     F->>F: Armazena token + navigateTo("/dashboard")
 ```
 
-### Stripe Checkout — Subscrição de Plano 🆕
+### Stripe Checkout — Subscrição de Plano
 
 ```mermaid
 sequenceDiagram
@@ -970,17 +970,17 @@ pytest tests/ --cov=. --cov-report=term-missing
 **Status:** Aceite  
 **Decisão:** `dict` Python com `time.monotonic()`. Zero dependências externas, latência ~0 para cache hits, invalidação por prefixo em writes. Redis evitado por overhead operacional desnecessário para single-instance.
 
-### ADR-009: Stripe Checkout para pagamentos 🆕
+### ADR-009: Stripe Checkout para pagamentos
 
 **Status:** Aceite  
 **Decisão:** Stripe Checkout Sessions com modo `subscription` para planos recorrentes. Evita complexidade de PCI compliance — toda a UI de pagamento é hosted pelo Stripe. Redirect-based flow com `success_url` e `cancel_url` que inclui `plano_id`.
 
-### ADR-010: Multi-tenancy por organização 🆕
+### ADR-010: Multi-tenancy por organização
 
 **Status:** Aceite  
 **Decisão:** Cada utilizador pertence a uma `organization`. Clubes são scoped à organização do utilizador (`ClubeModel.organization_id`). Admins podem ver todos via `/clubesAdmin`. Isolamento via query filter `WHERE organization_id = user.organization_id`.
 
-### ADR-011: RBAC com require_roles() 🆕
+### ADR-011: RBAC com require_roles()
 
 **Status:** Aceite  
 **Decisão:** Middleware `require_roles(*roles)` como FastAPI Dependency. 3 roles: Administrador (CRUD total), Gestor (criar/editar), Cliente (leitura). Enforcement a nível de endpoint, não de frontend.
