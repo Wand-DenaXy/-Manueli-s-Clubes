@@ -24,27 +24,27 @@
 
 ---
 
-## 🎯 Porquê este projeto?
+## Porquê este projeto?
 
 > A maioria dos projetos de portfólio mostra um CRUD genérico.  
 > Este vai **muito além** — é uma plataforma SaaS multi-tenant com pagamentos reais, RBAC, cache inteligente e 35 testes automatizados.
 
 | Métrica | Valor |
 |---------|-------|
-| 🏗️ Endpoints REST | **27+** (auth, CRUD, stats, pagamentos, perfil) |
-| 🧪 Testes automatizados | **35/35 passed** (pytest + httpx) |
-| 🔐 Segurança | JWT + Argon2id + RBAC (3 roles) |
-| 💳 Pagamentos | Stripe Checkout (subscrições recorrentes) |
-| 🏢 Multi-tenancy | Isolamento de dados por organização |
-| 📊 Dashboard | KPIs em tempo real + Chart.js (line + doughnut) |
-| 🗺️ Mapa interativo | Leaflet.js com marcadores GPS dos clubes |
-| 📅 Calendário | FullCalendar com inscrição em eventos (409 anti-duplicação) |
-| ⚡ Performance | Cache in-memory com TTL + invalidação por prefixo |
-| 🐳 Infraestrutura | Docker Compose (3 containers: DB + API + Frontend) |
+| Endpoints REST | **27+** (auth, CRUD, stats, pagamentos, perfil) |
+| Testes automatizados | **35/35 passed** (pytest + httpx) |
+| Segurança | JWT + Argon2id + RBAC (3 roles) |
+| Pagamentos | Stripe Checkout (subscrições recorrentes) |
+| Multi-tenancy | Isolamento de dados por organização |
+| Dashboard | KPIs em tempo real + Chart.js (line + doughnut) |
+| Mapa interativo | Leaflet.js com marcadores GPS dos clubes |
+| Calendário | FullCalendar com inscrição em eventos (409 anti-duplicação) |
+| Performance | Cache in-memory com TTL + invalidação por prefixo |
+| Infraestrutura | Docker Compose (3 containers: DB + API + Frontend) |
 
 ---
 
-## ✨ Funcionalidades
+## Funcionalidades
 
 ### Dashboard — KPIs e Gráficos em Tempo Real
 
@@ -60,7 +60,7 @@ Tabela interativa com criação, edição inline e eliminação. **Permissões p
 
 ---
 
-### Planos & Pagamentos — Stripe Checkout
+### Planos e Pagamentos — Stripe Checkout
 
 Página de subscrição com 3 tiers (Free · Pro · Enterprise). Pagamento via **Stripe Checkout** com subscrições recorrentes. Após pagamento, o plano é ativado automaticamente e os limites de clubes/mapas são atualizados em tempo real.
 
