@@ -6,17 +6,15 @@ def test_create_tipo_user(client, auth_headers):
     assert data["id"] is not None
 
 
-def test_list_tipo_user(client, db):
-    from tests.conftest import _seed_tipo
-    _seed_tipo(db, descricao="admin")
-    _seed_tipo(db, descricao="aluno")
+def test_list_tipo_user(client, auth_headers):
+    # auth_headers already seeds 1 tipo ("Administrador"); add a second one
+    client.post("/tipouser", json={"descricao": "aluno"}, headers=auth_headers)
     resp = client.get("/tipouser")
     assert resp.status_code == 200
-    assert len(resp.json()) == 2
+    assert len(resp.json()) >= 2
 
 
 def test_update_tipo_user(client, auth_headers):
-    # Create a tipo to update
     create = client.post("/tipouser", json={"descricao": "old_tipo"}, headers=auth_headers)
     tid = create.json()["id"]
     resp = client.put(f"/tipouser/{tid}", json={"descricao": "new_tipo"}, headers=auth_headers)

@@ -6,7 +6,7 @@ def test_create_clube(client, auth_headers):
         "localidade": "Lisboa",
         "evento_at": "2026-06-15",
     }, headers=auth_headers)
-    assert resp.status_code == 200
+    assert resp.status_code == 201
     data = resp.json()
     assert data["nome"] == "Clube Teste"
     assert data["id"] is not None

@@ -14,12 +14,12 @@ def test_update_utilizador(client, auth_headers, db):
     users = client.get("/utilizadores", headers=auth_headers).json()
     uid = users[0]["id"]
 
-    _seed_tipo(db, descricao="aluno")
+    tipo2 = _seed_tipo(db, descricao="Gestor")
 
     resp = client.put(f"/utilizadores/{uid}", json={
         "username": "updated_user",
         "password": "NewStr0ng!Pass",
-        "tipo_id": 2,
+        "tipo_id": tipo2.id,
     }, headers=auth_headers)
     assert resp.status_code == 200
     assert resp.json()["username"] == "updated_user"
