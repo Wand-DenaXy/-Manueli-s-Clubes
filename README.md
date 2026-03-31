@@ -1,5 +1,5 @@
 <div align="center">
-
+F
 # ✦ Manueli's Clubes
 
 ### Plataforma SaaS full-stack de gestão de clubes com pagamentos Stripe, multi-tenancy e RBAC
@@ -17,7 +17,7 @@
   <img alt="Stripe" src="https://img.shields.io/badge/Stripe-Payments-635BFF?logo=stripe&logoColor=white" />
   <img alt="Docker" src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white" />
   <img alt="JWT" src="https://img.shields.io/badge/Auth-JWT%20+%20Argon2-000000?logo=jsonwebtokens&logoColor=white" />
-  <img alt="Tests" src="https://img.shields.io/badge/Tests-35%20passed-brightgreen?logo=pytest&logoColor=white" />
+  <img alt="Tests" src="https://img.shields.io/badge/Tests-100%20passed-brightgreen?logo=pytest&logoColor=white" />
 </p>
 
 </div>
