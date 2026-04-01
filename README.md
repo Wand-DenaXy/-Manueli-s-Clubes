@@ -1,5 +1,5 @@
 <div align="center">
-F
+
 # ✦ Manueli's Clubes
 
 ### Plataforma SaaS full-stack de gestão de clubes com pagamentos Stripe, multi-tenancy e RBAC
