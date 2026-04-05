@@ -1,6 +1,7 @@
 import os
 import stripe
 from app import auth
+from app.task import process_stripe_event
 from fastapi import FastAPI, Depends, HTTPException,Response,Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -21,7 +22,8 @@ from app.models import (
     MapaModel, MapaCreate, MapaResponse,
     MembroClubeModel, IngressarResponse,
     PlanoModel, PlanoCreate, PlanoResponse,
-    CheckoutRequest
+    CheckoutRequest, StripeEventModel,
+    NotificacaoModel, NotificacaoResponse
 )
 
 app = FastAPI(title="API Manueli's Clubes", description="API para gestão de clubes e utilizadores")
@@ -39,6 +41,7 @@ bcrypt_context = CryptContext(schemes=["argon2"], deprecated="auto")
 load_dotenv()
 
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
 
@@ -725,3 +728,66 @@ def ingressar_clube(
         clube_nome=clube.nome,
         inscrito_em=nova_inscricao.inscrito_em,
     )
+
+
+@app.post("/stripe/webhook")
+async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature", "")
+
+    if not STRIPE_WEBHOOK_SECRET:
+        raise HTTPException(status_code=500, detail="Webhook secret não configurado")
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, STRIPE_WEBHOOK_SECRET
+        )
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Payload inválido")
+    except stripe.error.SignatureVerificationError:
+        raise HTTPException(status_code=400, detail="Assinatura inválida")
+
+    existing = db.query(StripeEventModel).filter(
+        StripeEventModel.event_id == event["id"]
+    ).first()
+    if existing:
+        return {"status": "duplicate"}
+
+    process_stripe_event.delay(
+        event_id=event["id"],
+        event_type=event["type"],
+        event_data=event["data"]["object"],
+    )
+
+    return {"status": "queued"}
+
+
+@app.get("/notificacoes", response_model=list[NotificacaoResponse])
+def list_notificacoes(
+    db: Session = Depends(get_db),
+    user: UtilizadorModel = Depends(get_current_user),
+):
+    return (
+        db.query(NotificacaoModel)
+        .filter(NotificacaoModel.utilizador_id == user.id)
+        .order_by(NotificacaoModel.created_at.desc())
+        .limit(50)
+        .all()
+    )
+
+
+@app.put("/notificacoes/{notif_id}/lida")
+def marcar_lida(
+    notif_id: int,
+    db: Session = Depends(get_db),
+    user: UtilizadorModel = Depends(get_current_user),
+):
+    notif = db.query(NotificacaoModel).filter(
+        NotificacaoModel.id == notif_id,
+        NotificacaoModel.utilizador_id == user.id,
+    ).first()
+    if not notif:
+        raise HTTPException(status_code=404, detail="Notificação não encontrada")
+    notif.lida = True
+    db.commit()
+    return {"status": "ok"}

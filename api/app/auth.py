@@ -40,6 +40,7 @@ class OAuth2PasswordRequestFormWithTipo:
 class CreateUserRequest(BaseModel):
     username: str
     password: str
+    email: str | None = None
     tipo_id: int = 1
     plano_id: int = 1
     organization_id: int = 1 
@@ -72,6 +73,7 @@ async def register(db: db_dependency, create_user_request: CreateUserRequest):
     hashed_password = bcrypt_context.hash(create_user_request.password)
     new_user = UtilizadorModel(
         username=create_user_request.username,
+        email=create_user_request.email,
         password=hashed_password,
         tipo_id=create_user_request.tipo_id,
         plano_id=create_user_request.plano_id,
