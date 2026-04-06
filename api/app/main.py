@@ -1,5 +1,6 @@
 import os
 import stripe
+import json
 from app import auth
 from app.task import process_stripe_event
 from fastapi import FastAPI, Depends, HTTPException,Response,Request
@@ -690,7 +691,7 @@ def create_checkout_session(
             cancel_url=f"{FRONTEND_URL}/planos?canceled=true",
             metadata={"user_id": str(user.id), "plano_id": str(plano.id)},
         )
-    except stripe.error.StripeError as e:
+    except stripe.StripeError as e:
         raise HTTPException(status_code=502, detail=str(e))
 
     return {"url": session.url}
@@ -739,24 +740,26 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Webhook secret não configurado")
 
     try:
-        event = stripe.Webhook.construct_event(
+        stripe.Webhook.construct_event(
             payload, sig_header, STRIPE_WEBHOOK_SECRET
         )
     except ValueError:
         raise HTTPException(status_code=400, detail="Payload inválido")
-    except stripe.error.SignatureVerificationError:
+    except stripe.SignatureVerificationError:
         raise HTTPException(status_code=400, detail="Assinatura inválida")
 
+    event_dict = json.loads(payload)
+
     existing = db.query(StripeEventModel).filter(
-        StripeEventModel.event_id == event["id"]
+        StripeEventModel.event_id == event_dict["id"]
     ).first()
     if existing:
         return {"status": "duplicate"}
 
     process_stripe_event.delay(
-        event_id=event["id"],
-        event_type=event["type"],
-        event_data=event["data"]["object"],
+        event_id=event_dict["id"],
+        event_type=event_dict["type"],
+        event_data=event_dict["data"]["object"],
     )
 
     return {"status": "queued"}
