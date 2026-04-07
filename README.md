@@ -65,16 +65,16 @@ Tabela interativa com criação, edição inline e eliminação. **Permissões p
 
 ---
 
-### Planos & Pagamentos — Stripe Checkout + Webhooks
+### Planos & Pagamentos — Stripe Checkout + Webhooks + Stripe CLI
 
-Página de subscrição com 3 tiers (Free · Pro · Enterprise). Pagamento via **Stripe Checkout** com subscrições recorrentes. Os **webhooks do Stripe** são recebidos pela API e processados de forma assíncrona via **Celery** — garantindo idempotência (deduplicação por `event_id`), retry automático com backoff exponencial (até 5 tentativas) e resiliência total a falhas temporárias.
+Página de subscrição com 3 tiers (Free · Pro · Enterprise). Pagamento via **Stripe Checkout** com subscrições recorrentes. Os **webhooks do Stripe** são recebidos pela API e processados de forma assíncrona via **Celery** — garantindo idempotência (deduplicação por `event_id`), retry automático com backoff exponencial (até 5 tentativas) e resiliência total a falhas temporárias. Em desenvolvimento local, os webhooks são encaminhados pelo **Stripe CLI** (`stripe listen --forward-to localhost:8000/stripe/webhook`).
 
-Quando um pagamento falha, o sistema:
+Quando um pagamento falha (`invoice.payment_failed`), o sistema:
 1. Reverte o utilizador para o plano Free
 2. Cria uma notificação in-app na BD
-3. Envia um email HTML via SMTP (TLS) a informar o utilizador
+3. Envia um **email HTML** via SMTP (Gmail TLS) a informar o utilizador
 
-Quando um pagamento é bem-sucedido, o plano é ativado e o utilizador recebe confirmação por email e notificação in-app.
+Quando um pagamento é bem-sucedido (`invoice.payment_succeeded`), o utilizador recebe **email de confirmação** e notificação in-app.
 
 | Plano | Preço | Clubes | Mapas |
 |-------|-------|--------|-------|
@@ -140,12 +140,21 @@ cd Manueli-s-Clubes
 
 # 3. Lançar tudo (5 containers: DB + Redis + API + Worker + Frontend)
 docker compose up --build
+
+# 4. Stripe CLI — encaminhar webhooks para localhost
+stripe listen --forward-to localhost:8000/stripe/webhook
+#    → Copiar o signing secret (whsec_...) para STRIPE_WEBHOOK_SECRET no api/.env
+
+# 5. Testar webhooks manualmente
+stripe trigger invoice.payment_failed
+stripe trigger checkout.session.completed
 ```
 
 | Serviço        | URL                          |
 |----------------|------------------------------|
 | Frontend       | http://localhost:3000         |
 | API (Swagger)  | http://localhost:8000/docs    |
+| Stripe CLI     | localhost:8000/stripe/webhook |
 | PostgreSQL     | localhost:5432               |
 | Redis          | localhost:6379               |
 
@@ -180,7 +189,8 @@ tests/test_stats.py        ✅ 5 passed   (stats, statstpuser, registrations, au
 | Task Queue | Celery (broker + backend Redis)    | 5.4.0     |
 | Auth       | python-jose (JWT) + Argon2         | —         |
 | Pagamentos | Stripe API (Checkout + Webhooks)   | 8.4.0     |
-| Email      | SMTP (TLS) via smtplib             | —         |
+| Dev Tools  | Stripe CLI (webhook forwarding)    | —         |
+| Email      | SMTP (TLS) via smtplib + Gmail     | —         |
 | Frontend   | Nuxt 3 (Vue 3, SSR)               | 3.x       |
 | UI         | Bootstrap 5, SweetAlert2           | —         |
 | Viz        | Chart.js, Leaflet.js, FullCalendar | —         |
@@ -1316,6 +1326,29 @@ cd api/app
 pip install -r requirements.txt
 uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 # → http://localhost:8000/docs (Swagger UI)
+```
+
+### Celery Worker
+
+```bash
+cd api
+celery -A app.celery_app:celery worker --loglevel=info
+```
+
+### Stripe CLI (Webhooks Locais)
+
+```bash
+# Instalar: https://docs.stripe.com/stripe-cli
+stripe login
+stripe listen --forward-to localhost:8000/stripe/webhook
+# → Copiar o signing secret (whsec_...) para STRIPE_WEBHOOK_SECRET
+```
+
+Testar eventos manualmente:
+```bash
+stripe trigger invoice.payment_failed      # → email de falha + revert para Free
+stripe trigger invoice.payment_succeeded   # → email de confirmação
+stripe trigger checkout.session.completed  # → ativa plano
 ```
 
 ### Frontend
