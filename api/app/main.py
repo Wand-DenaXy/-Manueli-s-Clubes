@@ -1,6 +1,8 @@
 import os
 import stripe
+import json
 from app import auth
+from app.task import process_stripe_event
 from fastapi import FastAPI, Depends, HTTPException,Response,Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -21,7 +23,8 @@ from app.models import (
     MapaModel, MapaCreate, MapaResponse,
     MembroClubeModel, IngressarResponse,
     PlanoModel, PlanoCreate, PlanoResponse,
-    CheckoutRequest
+    CheckoutRequest, StripeEventModel,
+    NotificacaoModel, NotificacaoResponse
 )
 
 app = FastAPI(title="API Manueli's Clubes", description="API para gestão de clubes e utilizadores")
@@ -39,6 +42,7 @@ bcrypt_context = CryptContext(schemes=["argon2"], deprecated="auto")
 load_dotenv()
 
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
 
@@ -687,7 +691,7 @@ def create_checkout_session(
             cancel_url=f"{FRONTEND_URL}/planos?canceled=true",
             metadata={"user_id": str(user.id), "plano_id": str(plano.id)},
         )
-    except stripe.error.StripeError as e:
+    except stripe.StripeError as e:
         raise HTTPException(status_code=502, detail=str(e))
 
     return {"url": session.url}
@@ -724,4 +728,52 @@ def ingressar_clube(
         clube_id=clube.id,
         clube_nome=clube.nome,
         inscrito_em=nova_inscricao.inscrito_em,
+    )
+
+
+@app.post("/stripe/webhook")
+async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature", "")
+
+    if not STRIPE_WEBHOOK_SECRET:
+        raise HTTPException(status_code=500, detail="Webhook secret não configurado")
+
+    try:
+        stripe.Webhook.construct_event(
+            payload, sig_header, STRIPE_WEBHOOK_SECRET
+        )
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Payload inválido")
+    except stripe.SignatureVerificationError:
+        raise HTTPException(status_code=400, detail="Assinatura inválida")
+
+    event_dict = json.loads(payload)
+
+    existing = db.query(StripeEventModel).filter(
+        StripeEventModel.event_id == event_dict["id"]
+    ).first()
+    if existing:
+        return {"status": "duplicate"}
+
+    process_stripe_event.delay(
+        event_id=event_dict["id"],
+        event_type=event_dict["type"],
+        event_data=event_dict["data"]["object"],
+    )
+
+    return {"status": "queued"}
+
+
+@app.get("/notificacoes", response_model=list[NotificacaoResponse])
+def list_notificacoes(
+    db: Session = Depends(get_db),
+    user: UtilizadorModel = Depends(get_current_user),
+):
+    return (
+        db.query(NotificacaoModel)
+        .filter(NotificacaoModel.utilizador_id == user.id)
+        .order_by(NotificacaoModel.created_at.desc())
+        .limit(50)
+        .all()
     )

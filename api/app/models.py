@@ -1,11 +1,20 @@
 from datetime import datetime,date
-from sqlalchemy import Column, Integer, String, DateTime, Table, Text,ForeignKey,UniqueConstraint,Date
+from sqlalchemy import Boolean, Column, Integer, String, DateTime, Table, Text,ForeignKey,UniqueConstraint,Date
 from sqlalchemy import Float
 from typing import Optional
 from pydantic import BaseModel
 from sqlalchemy.orm import relationship
 from app.database import Base 
 
+
+
+class StripeEventModel(Base):
+    __tablename__ = "stripe_events"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    event_id = Column(String(255), unique=True, nullable=False, index=True)
+    event_type = Column(String(100), nullable=False)
+    processed_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
 class OrganizationModel(Base):
@@ -73,6 +82,7 @@ class UtilizadorModel(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     username = Column(String(50), nullable=False, unique=True, index=True)
+    email = Column(String(255), nullable=True)
     password = Column(String(255), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     tipo_id = Column(Integer, ForeignKey("tipouser.id"), nullable=False)
@@ -83,7 +93,22 @@ class UtilizadorModel(Base):
     organization = relationship("OrganizationModel", back_populates="utilizadores")
     tipo = relationship("TipoUserModel", back_populates="utilizadores")
     plano = relationship("PlanoModel", back_populates="utilizadores")
+    notificacoes = relationship("NotificacaoModel", back_populates="utilizador", cascade="all, delete-orphan")
     clubes_inscritos = relationship("MembroClubeModel",back_populates="utilizador",cascade="all, delete-orphan")
+
+
+class NotificacaoModel(Base):
+    __tablename__ = "notificacoes"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    utilizador_id = Column(Integer, ForeignKey("utilizador.id"), nullable=False)
+    tipo = Column(String(50), nullable=False)
+    titulo = Column(String(255), nullable=False)
+    mensagem = Column(Text, nullable=False)
+    lida = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    utilizador = relationship("UtilizadorModel", back_populates="notificacoes")
 
 
 class MapaModel(Base):
@@ -161,12 +186,14 @@ class UserLogin(BaseModel):
 class UtilizadorCreate(BaseModel):
     username: str
     password: str
+    email: str | None = None
     tipo_id: int
 
 
 class UtilizadorResponse(BaseModel):
     id: int
     username: str
+    email: str | None = None
     tipo: TipoUserResponse
     plano: PlanoResponse | None = None
     organization: OrganizationResponse | None = None 
@@ -200,6 +227,17 @@ class IngressarResponse(BaseModel):
 class CheckoutRequest(BaseModel):
     plano_id: int
 
+    class Config:
+        from_attributes = True
+
+
+class NotificacaoResponse(BaseModel):
+    id: int
+    tipo: str
+    titulo: str
+    mensagem: str
+    lida: bool
+    created_at: datetime
 
     class Config:
         from_attributes = True

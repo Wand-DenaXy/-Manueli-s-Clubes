@@ -5,13 +5,20 @@ services:
     container_name: clubes_db
     restart: always
     environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${MYSQL_USER}
+      POSTGRES_PASSWORD: ${MYSQL_PASSWORD}
+      POSTGRES_DB: ${MYSQL_DB}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - clubes_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
@@ -19,6 +26,8 @@ services:
     restart: always
     ports:
       - "6379:6379"
+    networks:
+      - clubes_net
 
   api:
     build: ./api
@@ -30,8 +39,28 @@ services:
     environment:
       - REDIS_URL=redis://redis:6379/0
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - clubes_net
+
+  worker:
+    build: ./api
+    container_name: clubes_worker
+    command: celery -A app.celery_app:celery worker --loglevel=info
+    env_file:
+      - ./api/.env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - clubes_net
 
   frontend:
     build: ./nuxt-app
@@ -40,8 +69,14 @@ services:
       - "3000:3000"
     depends_on:
       - api
+    networks:
+      - clubes_net
 
 volumes:
   postgres_data:
+
+networks:
+  clubes_net:
+    driver: bridge
 
 
