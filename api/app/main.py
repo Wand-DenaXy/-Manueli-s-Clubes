@@ -777,20 +777,3 @@ def list_notificacoes(
         .limit(50)
         .all()
     )
-
-
-@app.put("/notificacoes/{notif_id}/lida")
-def marcar_lida(
-    notif_id: int,
-    db: Session = Depends(get_db),
-    user: UtilizadorModel = Depends(get_current_user),
-):
-    notif = db.query(NotificacaoModel).filter(
-        NotificacaoModel.id == notif_id,
-        NotificacaoModel.utilizador_id == user.id,
-    ).first()
-    if not notif:
-        raise HTTPException(status_code=404, detail="Notificação não encontrada")
-    notif.lida = True
-    db.commit()
-    return {"status": "ok"}

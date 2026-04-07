@@ -10,6 +10,7 @@ celery = Celery(
     "clubes_worker",
     broker=REDIS_URL,
     backend=REDIS_URL,
+    include=["app.task"],
 )
 
 celery.conf.update(
@@ -20,5 +21,3 @@ celery.conf.update(
     task_acks_late=True,
     worker_prefetch_multiplier=1,
 )
-
-celery.autodiscover_tasks(["app"])

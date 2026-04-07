@@ -3,7 +3,7 @@ from app.celery_app import celery
 from app.database import SessionLocal
 from app.models import StripeEventModel, UtilizadorModel, PlanoModel, NotificacaoModel
 from app.cache import cache_invalidate
-from app.email_service import payment_failed_email
+from app.email_service import payment_failed_email, payment_succeeded_email
 
 logger = logging.getLogger(__name__)
 
@@ -55,19 +55,27 @@ def process_stripe_event(self, event_id: str, event_type: str, event_data: dict)
         elif event_type in (
             "payment_intent.payment_failed",
             "checkout.session.async_payment_failed",
+            "invoice.payment_failed",
+            "invoice.payment_succeeded"
         ):
             metadata = event_data.get("metadata", {})
             user_id = metadata.get("user_id")
+            user = None
 
-            if not user_id:
-                logger.warning("Metadata sem user_id no evento %s", event_id)
-                return {"status": "skipped", "reason": "missing user_id"}
+            if user_id:
+                user = db.query(UtilizadorModel).filter(
+                    UtilizadorModel.id == int(user_id)
+                ).first()
 
-            user = db.query(UtilizadorModel).filter(
-                UtilizadorModel.id == int(user_id)
-            ).first()
             if not user:
-                logger.warning("Utilizador %s não encontrado para evento %s", user_id, event_id)
+                customer_email = event_data.get("customer_email") or event_data.get("receipt_email")
+                if customer_email:
+                    user = db.query(UtilizadorModel).filter(
+                        UtilizadorModel.email == customer_email
+                    ).first()
+
+            if not user:
+                logger.warning("Utilizador não encontrado para evento %s", event_id)
                 return {"status": "skipped", "reason": "user not found"}
 
             plano_free = db.query(PlanoModel).filter(PlanoModel.preco == 0).first()
@@ -75,21 +83,31 @@ def process_stripe_event(self, event_id: str, event_type: str, event_data: dict)
                 user.plano_id = plano_free.id
                 db.add(user)
                 logger.info(
-                    "Pagamento falhou — utilizador %s revertido para plano Free (evento %s)",
+                    "Pagamento falhou — utilizador %s revertido para plano Atual (evento %s)",
                     user_id, event_id,
                 )
-
-            notif = NotificacaoModel(
-                utilizador_id=user.id,
-                tipo="payment_failed",
-                titulo="Pagamento falhou",
-                mensagem="O teu pagamento não foi processado. O teu plano foi revertido para Free. "
-                         "Atualiza o teu método de pagamento para continuar com funcionalidades premium.",
-            )
+            if event_type in ("payment_intent.payment_failed", "checkout.session.async_payment_failed", "invoice.payment_failed"):
+                notif = NotificacaoModel(
+                    utilizador_id=user.id,
+                    tipo="payment_failed",
+                    titulo="Pagamento falhou",
+                    mensagem="O teu pagamento não foi processado. O teu plano foi revertido para Atual. "
+                            "Atualiza o teu método de pagamento para continuar com funcionalidades premium.",
+                )
+            else:
+                notif = NotificacaoModel(
+                    utilizador_id=user.id,
+                    tipo="payment_succeeded",
+                    titulo="Pagamento bem-sucedido",
+                    mensagem="O teu pagamento foi processado com sucesso. O teu plano foi atualizado para o próximo escalão.",
+                )
             db.add(notif)
-
+            
             if user.email:
-                payment_failed_email(user.email, user.username)
+                if event_type in ("payment_intent.payment_failed", "checkout.session.async_payment_failed", "invoice.payment_failed"):
+                    payment_failed_email(user.email, user.username)
+                else:
+                    payment_succeeded_email(user.email, user.username)
 
         db_event = StripeEventModel(event_id=event_id, event_type=event_type)
         db.add(db_event)

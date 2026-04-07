@@ -39,7 +39,6 @@ def send_email(to: str, subject: str, body_html: str) -> bool:
         logger.exception("Falha ao enviar email para %s", to)
         return False
 
-
 def payment_failed_email(to: str, username: str) -> bool:
     subject = "Pagamento falhou — Manueli's Clubes"
     body = f"""
@@ -51,6 +50,19 @@ def payment_failed_email(to: str, username: str) -> bool:
        por favor atualiza o teu método de pagamento.</p>
     <p><a href="{os.getenv('FRONTEND_URL', 'http://localhost:3000')}/planos">
        Atualizar plano</a></p>
+    <br>
+    <p>— Equipa Manueli's Clubes</p>
+    </body></html>
+    """
+    return send_email(to, subject, body)
+
+def payment_succeeded_email(to: str, username: str) -> bool:
+    subject = "Pagamento bem-sucedido — Manueli's Clubes"
+    body = f"""
+    <html><body>
+    <h2>Olá {username},</h2>
+    <p>O teu pagamento <strong>foi processado com sucesso</strong>.</p>
+    <p>O teu plano foi atualizado para o próximo escalão.</p>
     <br>
     <p>— Equipa Manueli's Clubes</p>
     </body></html>
