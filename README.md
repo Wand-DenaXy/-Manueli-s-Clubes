@@ -1278,7 +1278,7 @@ graph LR
     API -->|service_started| RD
     WK -->|service_healthy| DB
     WK -->|broker + backend| RD
-    API -->|task.delay()| RD
+    API -->|"task.delay()"| RD
     Browser([Browser]) -->|:3000| FE
     Browser -->|:8000| API
 ```
