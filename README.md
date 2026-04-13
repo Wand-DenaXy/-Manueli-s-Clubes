@@ -2,7 +2,7 @@
 
 # ✦ Manueli's Clubes
 
-**Production-grade SaaS com Stripe, Celery, Redis e RBAC (multi-tenant)**
+**SaaS full-stack de gestão de clubes** — pagamentos Stripe reais, webhooks assíncronos, multi-tenancy e RBAC
 
 *Criar clubes · Gerir membros · Calendário de eventos · Mapa interativo · Planos de subscrição · Notificações por email*
 
@@ -22,27 +22,27 @@
 
 ---
 
-## ✦ Porquê este projeto?
+## Porquê este projeto?
 
-Queria construir algo que **funcionasse como um produto real**, não apenas mais um CRUD académico. Clubes desportivos lidam com membros, eventos, mapas e pagamentos — um domínio complexo o suficiente para justificar multi-tenancy, RBAC, subscrições recorrentes e processamento assíncrono.
-
-O objetivo: provar que consigo levar uma ideia de zero a produção com a mesma stack e práticas que uma empresa usaria.
+Queria construir algo que **funcionasse como um produto real**, não apenas mais um CRUD académico. Clubes desportivos lidam com membros, eventos, mapas e pagamentos — um domínio complexo o suficiente para justificar multi-tenancy, RBAC, subscrições recorrentes e processamento assíncrono. O objetivo: provar que consigo levar uma ideia de zero a produção com a mesma stack e práticas que uma empresa usaria.
 
 ---
 
-## ✦ O Projeto em Números
+## O Projeto em Números
 
-**Scale** — 34 endpoints · 9 modelos ORM · 16 schemas Pydantic · 72 testes · 93% coverage · 5 containers Docker
-
-**Features** — Multi-tenancy por organização · RBAC (Admin/Gestor/Cliente) · Stripe Checkout (subscrições reais) · Webhooks async (Celery) · Cache Redis (TTL + invalidação) · Emails transacionais automáticos
-
-**Engenharia** — Idempotência de webhooks por `event_id` · Retry com backoff exponencial (max 5) · Cache invalidation por prefixo · CI gates que bloqueiam merge · Argon2id (vencedor PHC) · Zero PCI compliance via Stripe hosted
+| | |
+|---|---|
+| **34 endpoints** REST — auth, CRUD, stats, pagamentos, webhooks | **72 testes** · 93% coverage · CI gate ≥ 75% |
+| **9 modelos** ORM + 16 schemas Pydantic | **Stripe Checkout** (subscrições) + webhooks Celery |
+| **RBAC** — Admin · Gestor · Cliente | **Redis** cache TTL + invalidação + broker Celery |
+| **Multi-tenancy** por organização | **Docker Compose** — 5 containers production-ready |
+| **Emails automáticos** a cada pagamento | **CI/CD** — testes + lint + Docker build a cada push |
 
 ---
 
-## ✦ Planos de Subscrição
+## Planos de Subscrição
 
-Subscrições recorrentes via **Stripe Checkout** (mode=subscription). Limites enforced server-side.
+Subscrições recorrentes via **Stripe Checkout** (`mode=subscription`). Limites enforced server-side.
 
 | Plano | Preço/mês | Clubes | Mapas | Pagamento |
 |-------|-----------|--------|-------|-----------|
@@ -52,13 +52,13 @@ Subscrições recorrentes via **Stripe Checkout** (mode=subscription). Limites e
 
 A cada pagamento, o sistema envia **email HTML automático**:
 - ✅ **Sucesso** → confirmação de pagamento processado
-- ❌ **Falha** → aviso + plano revertido para Free + link para atualizar em /planos
+- ❌ **Falha** → aviso + plano revertido para Free + link para atualizar em `/planos`
 
-Webhooks processados via **Celery** com retry (backoff exponencial, max 5), idempotência por event_id.
+Webhooks processados via **Celery** com retry (backoff exponencial, max 5), idempotência por `event_id`.
 
 ---
 
-## ✦ Stack
+## Stack
 
 | Backend | Frontend | Infra |
 |---------|----------|-------|
@@ -68,26 +68,24 @@ Webhooks processados via **Celery** com retry (backoff exponencial, max 5), idem
 
 ---
 
-## ✦ CI/CD
-
 [![CI](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions/workflows/ci.yml/badge.svg)](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions)
 
-**Merge bloqueado** se qualquer gate falhar — sem exceções:
+Cada push/PR dispara **3 jobs obrigatórios** — todos têm de passar para o Docker build correr:
 
-| Gate | Bloqueia merge se… | Resultado atual |
-|------|--------------------|-----------------|
-| **Testes** | Qualquer teste falhar | 72/72 passed |
-| **Coverage** | Cobertura < 75% | 93% |
-| **Lint (ruff)** | Qualquer violação | Clean |
-| **Docker Build** | Imagem não compilar | OK |
+| Job | Falha se… |
+|-----|-----------|
+| **Testes + Coverage** | Qualquer teste falhar **ou** coverage < 75% |
+| **Lint (ruff)** | Qualquer violação de código |
+| **Docker Build** | Imagem não compilar |
 
-Edge cases cobertos nos testes: JWT forjado → 401 · username duplicado → 400 · limite plano → 403 · inscrição duplicada → 409 · webhook inválido → 400 · evento duplicado → idempotência · Stripe API error → 502 · SMTP off → no-op.
+```
+72 tests passed · coverage 93% (gate ≥ 75%) · lint clean · Docker OK
+```
 
 > 📂 [ci.yml](.github/workflows/ci.yml) · 🔗 [GitHub Actions](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions)
 
----
 
-## ✦ Screenshots
+## Screenshots
 
 <img width="1000" height="500" alt="Dashboard" src="nuxt-app/assets/images/DashboardManuel.PNG" />
 
@@ -103,7 +101,7 @@ Edge cases cobertos nos testes: JWT forjado → 401 · username duplicado → 40
 
 ---
 
-## ✦ Quick Start
+## Quick Start
 
 ```bash
 git clone https://github.com/Wand-DenaXy/-Manueli-s-Clubes.git
@@ -113,6 +111,18 @@ docker compose up --build          # 5 containers prontos
 ```
 
 ---
+
+## Testes & CI
+
+[![CI](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions/workflows/ci.yml/badge.svg)](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions)
+
+```
+72 tests · 93% coverage · lint clean · Docker build OK
+```
+
+Cada push dispara **3 jobs obrigatórios** — testes + coverage (≥ 75%), lint (ruff), Docker build.
+
+Edge cases: JWT forjado → 401 · username duplicado → 400 · limite plano → 403 · inscrição duplicada → 409 · webhook inválido → 400 · evento duplicado → idempotência · Stripe API error → 502 · SMTP off → no-op.
 
 <details>
 <summary>Breakdown por ficheiro</summary>
