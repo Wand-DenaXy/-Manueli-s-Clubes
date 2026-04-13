@@ -22,13 +22,13 @@
 
 ---
 
-## Porquê este projeto?
+## ✦ Porquê este projeto?
 
 Queria construir algo que **funcionasse como um produto real**, não apenas mais um CRUD académico. Clubes desportivos lidam com membros, eventos, mapas e pagamentos — um domínio complexo o suficiente para justificar multi-tenancy, RBAC, subscrições recorrentes e processamento assíncrono. O objetivo: provar que consigo levar uma ideia de zero a produção com a mesma stack e práticas que uma empresa usaria.
 
 ---
 
-## O Projeto em Números
+## ✦ O Projeto em Números
 
 | | |
 |---|---|
@@ -40,7 +40,7 @@ Queria construir algo que **funcionasse como um produto real**, não apenas mais
 
 ---
 
-## Planos de Subscrição
+## ✦ Planos de Subscrição
 
 Subscrições recorrentes via **Stripe Checkout** (`mode=subscription`). Limites enforced server-side.
 
@@ -58,7 +58,7 @@ Webhooks processados via **Celery** com retry (backoff exponencial, max 5), idem
 
 ---
 
-## Stack
+## ✦ Stack
 
 | Backend | Frontend | Infra |
 |---------|----------|-------|
@@ -85,7 +85,7 @@ Cada push/PR dispara **3 jobs obrigatórios** — todos têm de passar para o Do
 > 📂 [ci.yml](.github/workflows/ci.yml) · 🔗 [GitHub Actions](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions)
 
 
-## Screenshots
+## ✦ Screenshots
 
 <img width="1000" height="500" alt="Dashboard" src="nuxt-app/assets/images/DashboardManuel.PNG" />
 
@@ -112,7 +112,7 @@ docker compose up --build          # 5 containers prontos
 
 ---
 
-## Testes & CI
+## ✦ Testes & CI
 
 [![CI](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions/workflows/ci.yml/badge.svg)](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions)
 
@@ -124,27 +124,7 @@ Cada push dispara **3 jobs obrigatórios** — testes + coverage (≥ 75%), lint
 
 Edge cases: JWT forjado → 401 · username duplicado → 400 · limite plano → 403 · inscrição duplicada → 409 · webhook inválido → 400 · evento duplicado → idempotência · Stripe API error → 502 · SMTP off → no-op.
 
-<details>
-<summary>Breakdown por ficheiro</summary>
-
-```
-test_auth.py          7 passed   register, JWT, wrong password, tampered token, ...
-test_clubes.py        9 passed   CRUD, ingressar, duplicate 409, plan limit 403
-test_email.py         5 passed   SMTP config, send ok/fail, payment emails
-test_endpoints.py    14 passed   /me, /clubesAdmin, /organizations, /notificacoes, /planos CRUD
-test_mapas.py         7 passed   CRUD + 404s
-test_stats.py         5 passed   stats, statstpuser, registrations + no auth
-test_tipouser.py      6 passed   CRUD + 404s
-test_utilizadores.py  4 passed   CRUD + 404
-test_webhooks.py     15 passed   webhook validation, checkout flow, Celery task processing
-```
-
-</details>
-
----
-
-<details>
-<summary><strong>Estrutura do Projeto</strong></summary>
+## ✦ Estrutura do Projeto
 
 ```
 -Manueli-s-Clubes/
@@ -196,9 +176,27 @@ test_webhooks.py     15 passed   webhook validation, checkout flow, Celery task 
         └── Navbar.vue               # Nav sidebar
 ```
 
-</details>
 
 ---
+<details>
+<summary>Breakdown por ficheiro</summary>
+
+```
+test_auth.py          7 passed   register, JWT, wrong password, tampered token, ...
+test_clubes.py        9 passed   CRUD, ingressar, duplicate 409, plan limit 403
+test_email.py         5 passed   SMTP config, send ok/fail, payment emails
+test_endpoints.py    14 passed   /me, /clubesAdmin, /organizations, /notificacoes, /planos CRUD
+test_mapas.py         7 passed   CRUD + 404s
+test_stats.py         5 passed   stats, statstpuser, registrations + no auth
+test_tipouser.py      6 passed   CRUD + 404s
+test_utilizadores.py  4 passed   CRUD + 404
+test_webhooks.py     15 passed   webhook validation, checkout flow, Celery task processing
+```
+
+</details>
+
+
+
 
 <!-- ═══════════════════════════════════════════════════════════ -->
 <!-- DEEP DIVE — Secções técnicas em detalhes colapsáveis       -->
