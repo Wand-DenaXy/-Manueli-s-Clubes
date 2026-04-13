@@ -1,5 +1,5 @@
 from datetime import datetime,date
-from sqlalchemy import Boolean, Column, Integer, String, DateTime, Table, Text,ForeignKey,UniqueConstraint,Date
+from sqlalchemy import Boolean, Column, Integer, String, DateTime, Text,ForeignKey,UniqueConstraint,Date
 from sqlalchemy import Float
 from typing import Optional
 from pydantic import BaseModel

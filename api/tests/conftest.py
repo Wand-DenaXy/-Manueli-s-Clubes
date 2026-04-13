@@ -1,4 +1,5 @@
 import os
+from unittest.mock import MagicMock
 
 # ── env vars must be set BEFORE any app imports ──────────────────
 os.environ["SECRET_KEY"] = "test-secret-key-do-not-use-in-production"
@@ -28,6 +29,12 @@ from app.models import TipoUserModel, PlanoModel, OrganizationModel
 # connect to the production PostgreSQL database.
 app.router.on_startup.clear()
 app.router.on_shutdown.clear()
+
+# ── Patch Redis so tests never need a running Redis server ───────
+import app.cache as _cache_mod
+_cache_mod._redis = MagicMock()
+_cache_mod._redis.get.return_value = None
+_cache_mod._redis.scan_iter.return_value = []
 
 # ── in-memory SQLite engine for tests ────────────────────────────
 SQLALCHEMY_TEST_URL = "sqlite:///./test.db"

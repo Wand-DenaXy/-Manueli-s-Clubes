@@ -11,10 +11,10 @@ from passlib.context import CryptContext
 from dotenv import load_dotenv
 from typing import Annotated
 from datetime import datetime
-from sqlalchemy import extract, func, text, inspect as sa_inspect
+from sqlalchemy import extract, func
 from app.auth import get_current_user
 from sqlalchemy.orm import joinedload
-from app.database import get_db, init_db, engine as _engine
+from app.database import get_db, init_db
 from app.cache import cache_get, cache_set, cache_invalidate
 from app.models import (
     ClubeModel, ClubeCreate, ClubeResponse, OrganizationModel,
@@ -260,32 +260,6 @@ def list_clubes(
         for clube in result
     ]
     cache_set(cache_key, clubes_dict, ttl=30)
-    return clubes_dict
-
-@app.get("/clubes", response_model=list[ClubeResponse])
-def list_clubes(
-    db: Session = Depends(get_db),
-    user: UtilizadorModel = Depends(get_current_user)
-):
-    cached = cache_get("clubes:list")
-    if cached is not None:
-        return cached
-    result = db.query(ClubeModel).filter(
-    ClubeModel.organization_id == user.organization_id).all()
-    clubes_dict = [
-        {
-            "id": clube.id,
-            "nome": clube.nome,
-            "email": clube.email,
-            "telefone": clube.telefone,
-            "localidade": clube.localidade,
-            "evento_at": clube.evento_at,
-            "organization_id": clube.organization_id,
-            "organization": {"id": clube.organization.id, "nome": clube.organization.nome} if clube.organization else None,
-        }
-        for clube in result
-    ]
-    cache_set("clubes:list", clubes_dict, ttl=30)
     return clubes_dict
 
 @app.post("/clubes", response_model=ClubeResponse, status_code=201)

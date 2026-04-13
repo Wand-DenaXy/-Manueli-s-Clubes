@@ -9,7 +9,7 @@
 
 <p>
   <a href="https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions"><img alt="CI" src="https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions/workflows/ci.yml/badge.svg" /></a>
-  <img alt="Coverage" src="https://img.shields.io/badge/coverage-%E2%89%A575%25-brightgreen?logo=pytest&logoColor=white" />
+  <img alt="Coverage" src="https://img.shields.io/badge/coverage-93%25-brightgreen?logo=pytest&logoColor=white" />
   <img alt="Python" src="https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white" />
   <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white" />
   <img alt="Nuxt" src="https://img.shields.io/badge/Nuxt-3-00DC82?logo=nuxtdotjs&logoColor=white" />
@@ -27,7 +27,7 @@ Plataforma SaaS para federações e organizações desportivas gerirem clubes, m
 
 | | |
 |---|---|
-| **34 endpoints** REST (auth, CRUD, stats, pagamentos, webhooks) | **43 testes** com coverage gate ≥ 75% — [ver CI](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions) |
+| **34 endpoints** REST (auth, CRUD, stats, pagamentos, webhooks) | **72 testes** com coverage gate ≥ 75% — [ver CI](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions) |
 | **9 tabelas** ORM + 16 Pydantic schemas | **Stripe Checkout** + webhooks Celery (retry + idempotência) |
 | **RBAC** — Admin · Gestor · Cliente | **Redis** cache (TTL + invalidação) + broker Celery |
 | **Multi-tenancy** por organização | **Docker Compose** — 5 containers |
@@ -57,7 +57,7 @@ Cada push/PR dispara **3 jobs obrigatórios** — todos têm de passar para o Do
 | **Docker Build** | Imagem não compilar |
 
 ```
-43 tests passed · coverage ≥ 75% · lint clean · Docker OK
+72 tests passed · coverage ≥ 75% · lint clean · Docker OK
 ```
 
 > 📂 [ci.yml](.github/workflows/ci.yml) · 🔗 [GitHub Actions](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions)
@@ -116,9 +116,12 @@ tests/test_utilizadores.py ✅ 4 passed   (list, update, delete, 404)
 tests/test_tipouser.py     ✅ 7 passed   (CRUD + 404)
 tests/test_mapas.py        ✅ 9 passed   (CRUD + clube inexistente + 404)
 tests/test_stats.py        ✅ 5 passed   (stats públicas, statstpuser, registrations, auth guard)
+tests/test_webhooks.py     ✅ 15 passed  (webhook secret, payload/sig inválidos, duplicação, fila Celery, checkout free/404/success/Stripe error, task checkout/payment_failed/succeeded/idempotência/metadata/user not found)
+tests/test_endpoints.py    ✅ 14 passed  (/me, /me/plano, /clubesAdmin, /organizations, /notificacoes, /planos CRUD + 404)
+tests/test_email.py        ✅ 5 passed   (SMTP not configured, success, failure, payment_failed_email, payment_succeeded_email)
 ```
 
-Edge cases cobertos: token JWT forjado → 401, utilizador inexistente → 401, limite do plano atingido → 403, inscrição duplicada → 409.
+Edge cases cobertos: token JWT forjado → 401, utilizador inexistente → 401, limite do plano atingido → 403, inscrição duplicada → 409, webhook secret vazio → 500, assinatura Stripe inválida → 400, evento duplicado → idempotência, Stripe API error → 502.
 
 ---
 
@@ -146,14 +149,17 @@ Edge cases cobertos: token JWT forjado → 401, utilizador inexistente → 401, 
 │   │   ├── task.py                  # Tarefa assíncrona: processamento de webhooks Stripe
 │   │   ├── email_service.py         # Envio de emails HTML via SMTP (TLS)
 │   │   └── requirements.txt
-│   └── tests/                       # 40 testes (pytest + httpx)
+│   └── tests/                       # 72 testes (pytest + httpx)
 │       ├── conftest.py
 │       ├── test_auth.py
 │       ├── test_clubes.py
+│       ├── test_email.py
+│       ├── test_endpoints.py
 │       ├── test_mapas.py
 │       ├── test_stats.py
 │       ├── test_tipouser.py
-│       └── test_utilizadores.py
+│       ├── test_utilizadores.py
+│       └── test_webhooks.py
 │
 └── nuxt-app/                        # Frontend (Nuxt 3)
     ├── Dockerfile                   # node:20 → :3000
