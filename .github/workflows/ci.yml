@@ -8,7 +8,7 @@ on:
 
 jobs:
   test:
-    name: Testes automatizados (pytest)
+    name: Testes + Cobertura (pytest)
     runs-on: ubuntu-latest
 
     services:
@@ -37,7 +37,7 @@ jobs:
         working-directory: api
         run: pip install -r app/requirements.txt
 
-      - name: Correr testes
+      - name: Correr testes com cobertura
         working-directory: api
         env:
           SECRET_KEY: "test-secret-key-ci-pipeline"
@@ -56,7 +56,12 @@ jobs:
           SMTP_PASSWORD: "test"
           SMTP_FROM: "test@test.com"
           FRONTEND_URL: "http://localhost:3000"
-        run: pytest tests/ -v --tb=short
+        run: |
+          pytest tests/ -v --tb=short \
+            --cov=app \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
+            --cov-fail-under=75
 
       - name: Sumário dos resultados
         if: always()
@@ -83,12 +88,11 @@ jobs:
       - name: Verificar qualidade de código
         working-directory: api/app
         run: ruff check . --ignore E501
-        continue-on-error: true
 
   docker:
     name: Build Docker (verificação)
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, lint]
 
     steps:
       - name: Checkout do repositório

@@ -68,3 +68,19 @@ def test_login_wrong_password(client, db):
 def test_protected_route_without_token(client):
     resp = client.get("/clubes")
     assert resp.status_code == 401
+
+
+def test_tampered_jwt_rejected(client):
+    """A forged/tampered JWT must be rejected with 401."""
+    fake_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJoYWNrZXIiLCJpZCI6OTk5fQ.invalidsignature"
+    resp = client.get("/clubes", headers={"Authorization": f"Bearer {fake_token}"})
+    assert resp.status_code == 401
+
+
+def test_login_nonexistent_user(client):
+    """Login with a username that was never registered returns 401."""
+    resp = client.post("/auth/token", data={
+        "username": "ghost",
+        "password": "DoesNotMatter1!",
+    })
+    assert resp.status_code == 401

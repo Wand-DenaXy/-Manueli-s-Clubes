@@ -2,222 +2,123 @@
 
 # ✦ Manueli's Clubes
 
-### Plataforma SaaS full-stack de gestão de clubes com pagamentos Stripe, webhooks assíncronos, multi-tenancy e RBAC
+**SaaS multi-tenant de gestão de clubes** — FastAPI + Nuxt 3 + Stripe + Celery + PostgreSQL + Redis
 
-*Criar clubes · Gerir membros · Calendário de eventos · Mapa interativo · Planos de subscrição · Notificações por email*
-
-<!-- TODO: Substituir a imagem abaixo por um GIF de demonstração do site (navegação completa: landing → login → dashboard → clubes → mapas → calendário → planos) -->
+<!-- TODO: Substituir por GIF de demonstração do site (landing → login → dashboard → clubes → mapas → calendário → planos) -->
 <img width="1000" height="500" alt="ManueliClube" src="https://github.com/user-attachments/assets/786aee57-cdbc-4be2-823b-51c221d7e4b8" />
 
 <p>
   <a href="https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions"><img alt="CI" src="https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions/workflows/ci.yml/badge.svg" /></a>
+  <img alt="Coverage" src="https://img.shields.io/badge/coverage-%E2%89%A575%25-brightgreen?logo=pytest&logoColor=white" />
   <img alt="Python" src="https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white" />
   <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white" />
-  <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-15-4169E1?logo=postgresql&logoColor=white" />
-  <img alt="Redis" src="https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white" />
-  <img alt="Celery" src="https://img.shields.io/badge/Celery-5.4-37814A?logo=celery&logoColor=white" />
   <img alt="Nuxt" src="https://img.shields.io/badge/Nuxt-3-00DC82?logo=nuxtdotjs&logoColor=white" />
-  <img alt="Vue" src="https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white" />
-  <img alt="Stripe" src="https://img.shields.io/badge/Stripe-Webhooks%20+%20Checkout-635BFF?logo=stripe&logoColor=white" />
+  <img alt="Stripe" src="https://img.shields.io/badge/Stripe-Checkout%20+%20Webhooks-635BFF?logo=stripe&logoColor=white" />
   <img alt="Docker" src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white" />
-  <img alt="JWT" src="https://img.shields.io/badge/Auth-JWT%20+%20Argon2-000000?logo=jsonwebtokens&logoColor=white" />
-  <img alt="Tests" src="https://img.shields.io/badge/Tests-40%20passed-brightgreen?logo=pytest&logoColor=white" />
 </p>
 
 </div>
 
 ---
 
-## Porquê este projeto?
+## O que é
 
-> A maioria dos projetos de portfólio mostra um CRUD genérico.  
-> Este vai **muito além** — é uma plataforma SaaS multi-tenant com pagamentos reais, webhooks Stripe processados de forma assíncrona, notificações por email, cache Redis, RBAC e 40 testes automatizados.
+Plataforma SaaS para federações e organizações desportivas gerirem clubes, membros, eventos e pagamentos — com multi-tenancy, RBAC (3 roles), subscrições Stripe recorrentes e processamento assíncrono de webhooks.
 
-| Métrica | Valor |
-|---------|-------|
-| Endpoints REST | **34** (auth, CRUD, stats, pagamentos, webhooks, perfil, notificações) |
-| Testes automatizados | **40/40 passed** (pytest + httpx) — [CI pipeline](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions) |
-| Modelos ORM | **9** tabelas + **16** Pydantic schemas |
-| Segurança | JWT + Argon2id + RBAC (3 roles) |
-| Pagamentos | Stripe Checkout + Webhooks (subscrições recorrentes) |
-| Processamento assíncrono | Celery + Redis (retry com backoff exponencial) |
-| Notificações | Email SMTP (TLS) + notificações in-app em BD |
-| Multi-tenancy | Isolamento de dados por organização |
-| Dashboard | KPIs em tempo real + Chart.js (line + doughnut) |
-| Mapa interativo | Leaflet.js com marcadores GPS dos clubes |
-| Calendário | FullCalendar com inscrição em eventos (409 anti-duplicação) |
-| Cache | Redis com TTL + invalidação por prefixo |
-| Infraestrutura | Docker Compose (5 containers: DB + Redis + API + Worker + Frontend) |
-| CI/CD | GitHub Actions — testes + lint + Docker build a cada push/PR |
+| | |
+|---|---|
+| **34 endpoints** REST (auth, CRUD, stats, pagamentos, webhooks) | **43 testes** com coverage gate ≥ 75% — [ver CI](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions) |
+| **9 tabelas** ORM + 16 Pydantic schemas | **Stripe Checkout** + webhooks Celery (retry + idempotência) |
+| **RBAC** — Admin · Gestor · Cliente | **Redis** cache (TTL + invalidação) + broker Celery |
+| **Multi-tenancy** por organização | **Docker Compose** — 5 containers |
 
 ---
 
-## Funcionalidades
+## Stack
 
-### Dashboard — KPIs e Gráficos em Tempo Real
+| Backend | Frontend | Infra |
+|---------|----------|-------|
+| Python 3.11 · FastAPI · SQLAlchemy | Nuxt 3 · Vue 3 · Bootstrap 5 | PostgreSQL 15 · Redis 7 |
+| Celery 5.4 · Stripe 8.4 | Chart.js · Leaflet · FullCalendar | Docker Compose · GitHub Actions |
+| JWT (HS256) · Argon2id · SMTP | SweetAlert2 | ruff (lint) · pytest-cov |
 
-Painel de administração com cards de métricas (clubes, utilizadores, mapas), gráfico de linha (registos mensais) e doughnut (distribuição por tipo de utilizador) — tudo alimentado pela API com cache.
+---
+
+## CI/CD
+
+[![CI](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions/workflows/ci.yml/badge.svg)](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions)
+
+Cada push/PR dispara **3 jobs obrigatórios** — todos têm de passar para o Docker build correr:
+
+| Job | Falha se… |
+|-----|-----------|
+| **Testes + Coverage** | Qualquer teste falhar **ou** coverage < 75% |
+| **Lint (ruff)** | Qualquer violação de código |
+| **Docker Build** | Imagem não compilar |
+
+```
+43 tests passed · coverage ≥ 75% · lint clean · Docker OK
+```
+
+> 📂 [ci.yml](.github/workflows/ci.yml) · 🔗 [GitHub Actions](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions)
+
+---
+
+## Screenshots
+
+### Dashboard — KPIs + Chart.js
 
 <img width="1000" height="500" alt="Dashboard" src="nuxt-app/assets/images/DashboardManuel.PNG" />
 
----
-
-### Gestão de Clubes — CRUD com RBAC e Multi-Tenancy
-
-Tabela interativa com criação, edição inline e eliminação. **Permissões por role** (Admin vê tudo via `/clubesAdmin`, Gestor pode criar/editar na sua organização). Limites de criação enforced pelo plano ativo do utilizador. SweetAlert2 para confirmações.
-
----
-
-### Planos & Pagamentos — Stripe Checkout + Webhooks + Stripe CLI
-
-Página de subscrição com 3 tiers (Free · Pro · Enterprise). Pagamento via **Stripe Checkout** com subscrições recorrentes. Os **webhooks do Stripe** são recebidos pela API e processados de forma assíncrona via **Celery** — garantindo idempotência (deduplicação por `event_id`), retry automático com backoff exponencial (até 5 tentativas) e resiliência total a falhas temporárias. Em desenvolvimento local, os webhooks são encaminhados pelo **Stripe CLI** (`stripe listen --forward-to localhost:8000/stripe/webhook`).
-
-Quando um pagamento falha (`invoice.payment_failed`), o sistema:
-1. Reverte o utilizador para o plano Free
-2. Cria uma notificação in-app na BD
-3. Envia um **email HTML** via SMTP (Gmail TLS) a informar o utilizador
-
-Quando um pagamento é bem-sucedido (`invoice.payment_succeeded`), o utilizador recebe **email de confirmação** e notificação in-app.
-
-| Plano | Preço | Clubes | Mapas |
-|-------|-------|--------|-------|
-| Free | 0 €/mês | 3 | 1 |
-| Pro | 9.99 €/mês | 15 | 20 |
-| Enterprise | 29.99 €/mês | ∞ | ∞ |
-
----
+> Cards de métricas em tempo real, gráfico de registos mensais (line) e distribuição por role (doughnut). Dados da API com cache Redis.
 
 ### Mapa Interativo — Leaflet.js
 
-Mapa dark-themed com marcadores dos clubes, painel lateral com lista de pontos e formulário para adicionar novas localizações por coordenadas GPS.
-
 <img width="1000" height="500" alt="Mapas" src="nuxt-app/assets/images/ManuelMapas.PNG" />
 
----
+> Dark-themed map com marcadores GPS dos clubes, painel lateral e formulário de coordenadas.
 
-### Calendário de Eventos — FullCalendar
-
-Calendário mensal com eventos dos clubes em cores diferentes. Clicar num evento abre um painel com detalhes e botão "Ingressar" — inscrição com proteção de duplicação (HTTP 409).
-
----
-
-### Autenticação — JWT + Argon2 + RBAC
-
-Login com username, password e seleção de tipo de utilizador. Passwords hashed com Argon2id. Token JWT (30 min) no header `Authorization: Bearer`. **3 roles com permissões granulares:**
-
-| Role | Permissões |
-|------|-----------|
-| Administrador | CRUD completo, gestão de utilizadores, ver todas as organizações |
-| Gestor | Criar/editar clubes e mapas na sua organização |
-| Cliente | Visualizar, ingressar em clubes |
+### Login — JWT + Argon2
 
 <img width="1000" height="500" alt="Login" src="nuxt-app/assets/images/ManuelLogin.PNG" />
 
----
-
-### Landing Page e About Us
-
-Página inicial com hero section, call-to-action e barra de estatísticas em tempo real (total de clubes, utilizadores, mapas). Página "Sobre nós" com missão, valores e equipa.
-
----
-
-### Notificações — Email SMTP + In-App
-
-Sistema de notificações duplo: **emails HTML** enviados via SMTP com TLS (Gmail App Passwords) e **notificações persistentes** armazenadas em BD. O utilizador pode consultar o histórico de notificações via `GET /notificacoes`. Os emails são disparados automaticamente pelo Celery worker quando eventos de pagamento são processados.
+> Autenticação com 3 roles (Admin/Gestor/Cliente). Passwords hashed com Argon2id. Token JWT 30 min.
 
 ---
 
 ## Quick Start
 
 ```bash
-# 1. Clonar
-git clone https://github.com/<user>/Manueli-s-Clubes.git
-cd Manueli-s-Clubes
-
-# 2. Configurar variáveis de ambiente
-#    → .env (raiz): MYSQL_USER, MYSQL_PASSWORD, MYSQL_DB
-#    → api/.env:   MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_PASSWORD,
-#                  MYSQL_DATABASE, SECRET_KEY, ALGORITHM,
-#                  STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET,
-#                  SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM
-
-# 3. Lançar tudo (5 containers: DB + Redis + API + Worker + Frontend)
-docker compose up --build
-
-# 4. Stripe CLI — encaminhar webhooks para localhost
-stripe listen --forward-to localhost:8000/stripe/webhook
-#    → Copiar o signing secret (whsec_...) para STRIPE_WEBHOOK_SECRET no api/.env
-
-# 5. Testar webhooks manualmente
-stripe trigger invoice.payment_failed
-stripe trigger checkout.session.completed
+git clone https://github.com/Wand-DenaXy/-Manueli-s-Clubes.git
+cd -Manueli-s-Clubes
+docker compose up --build        # 5 containers: DB + Redis + API + Worker + Frontend
 ```
 
-| Serviço        | URL                          |
-|----------------|------------------------------|
-| Frontend       | http://localhost:3000         |
-| API (Swagger)  | http://localhost:8000/docs    |
-| Stripe CLI     | localhost:8000/stripe/webhook |
-| PostgreSQL     | localhost:5432               |
-| Redis          | localhost:6379               |
+| Serviço | URL |
+|---------|-----|
+| Frontend | http://localhost:3000 |
+| API Swagger | http://localhost:8000/docs |
+| PostgreSQL | localhost:5432 |
+| Redis | localhost:6379 |
 
 ---
 
-## CI/CD — GitHub Actions
-
-[![CI](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions/workflows/ci.yml/badge.svg)](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions)
-
-A cada **push** (`main`, `develop`) ou **pull request** (`main`), o pipeline corre automaticamente 3 jobs:
-
-| Job | O que faz | Ferramentas |
-|-----|-----------|-------------|
-| **Testes** | Instala dependências, levanta Redis como service container, corre `pytest tests/ -v` com variáveis de CI | Python 3.11, pytest, httpx, Redis 7 |
-| **Lint** | Verifica qualidade de código com análise estática | ruff |
-| **Docker Build** | Compila a imagem Docker da API (sem push) para validar o Dockerfile | Docker Buildx, cache GHA |
-
-> 📂 [Ver pipeline completo](.github/workflows/ci.yml) · 🔗 [Ver runs no GitHub Actions](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions)
-
----
-
-## Testes — 40/40 Passed
+## Testes
 
 ```bash
-cd api && pytest tests/ -v --tb=short
+cd api && pytest tests/ -v --tb=short --cov=app --cov-fail-under=75
 ```
 
 ```
-tests/test_auth.py         ✅ 5 passed   (registo, login, token, password errada, rota protegida)
-tests/test_clubes.py       ✅ 9 passed   (CRUD + inscrição + duplicação 409 + 404)
-tests/test_utilizadores.py ✅ 5 passed   (list, update, delete, 404)
+tests/test_auth.py         ✅ 7 passed   (registo, login, JWT, password errada, token forjado, user inexistente, rota protegida)
+tests/test_clubes.py       ✅ 10 passed  (CRUD + inscrição + duplicação 409 + limite de plano 403 + 404)
+tests/test_utilizadores.py ✅ 4 passed   (list, update, delete, 404)
 tests/test_tipouser.py     ✅ 7 passed   (CRUD + 404)
 tests/test_mapas.py        ✅ 9 passed   (CRUD + clube inexistente + 404)
-tests/test_stats.py        ✅ 5 passed   (stats, statstpuser, registrations, auth guard)
+tests/test_stats.py        ✅ 5 passed   (stats públicas, statstpuser, registrations, auth guard)
 ```
 
-Os testes correm tanto localmente como no CI — a configuração usa **SQLite in-memory** e **Redis como service container**, sem depender de infraestrutura externa.
-
----
-
-## Tech Stack
-
-| Camada     | Tecnologia                         | Versão    |
-|------------|------------------------------------|-----------| 
-| Runtime    | Python                             | 3.11      |
-| API        | FastAPI + Uvicorn                  | 0.115.6   |
-| ORM        | SQLAlchemy                         | 2.0.36    |
-| DB         | PostgreSQL (psycopg2)              | 15        |
-| Cache      | Redis                              | 7         |
-| Task Queue | Celery (broker + backend Redis)    | 5.4.0     |
-| Auth       | python-jose (JWT) + Argon2         | —         |
-| Pagamentos | Stripe API (Checkout + Webhooks)   | 8.4.0     |
-| Dev Tools  | Stripe CLI (webhook forwarding)    | —         |
-| Email      | SMTP (TLS) via smtplib + Gmail     | —         |
-| Frontend   | Nuxt 3 (Vue 3, SSR)               | 3.x       |
-| UI         | Bootstrap 5, SweetAlert2           | —         |
-| Viz        | Chart.js, Leaflet.js, FullCalendar | —         |
-| Container  | Docker + Docker Compose            | —         |
-| CI/CD      | GitHub Actions (pytest + ruff + Docker Buildx) | —   |
-| Lint       | ruff                               | —         |
+Edge cases cobertos: token JWT forjado → 401, utilizador inexistente → 401, limite do plano atingido → 403, inscrição duplicada → 409.
 
 ---
 
@@ -475,49 +376,16 @@ erDiagram
 <details>
 <summary><strong>Cache — Redis com TTL e Invalidação por Prefixo</strong></summary>
 
-O sistema usa **Redis** como backend de cache (`cache.py`) com TTL por key e invalidação automática por prefixo em operações de escrita. O mesmo Redis serve também de broker e backend para o Celery.
+Redis serve como cache (`SETEX` + `SCAN`/`DEL` por prefixo) e Celery broker numa única instância.
 
-### Módulo `cache.py`
-
-```python
-import os
-import json
-from typing import Any
-import redis
-
-_redis = redis.Redis.from_url(
-    os.getenv("REDIS_URL", "redis://localhost:6379/0"),
-    decode_responses=True,
-)
-
-def cache_get(key: str) -> Any | None:
-    value = _redis.get(key)
-    if value is None:
-        return None
-    return json.loads(value)
-
-def cache_set(key: str, value: Any, ttl: int) -> None:
-    _redis.setex(key, ttl, json.dumps(value, default=str))
-
-def cache_invalidate(*prefixes: str) -> None:
-    for prefix in prefixes:
-        for key in _redis.scan_iter(f"{prefix}*"):
-            _redis.delete(key)
-```
-
-### Tabela de TTL e Invalidação
-
-| Endpoint GET          | Cache Key              | TTL    | Invalidado por                           |
-|-----------------------|------------------------|--------|------------------------------------------|
-| `GET /stats`          | `stats`                | 60 s   | POST/PUT/DELETE clubes, utilizadores, mapas, tipouser |
-| `GET /statstpuser`    | `statstpuser`          | 60 s   | POST/PUT/DELETE utilizadores, tipouser   |
-| `GET /registrations`  | `registrations:{year}` | 300 s  | DELETE/PUT utilizadores                  |
-| `GET /clubes`         | `clubes:org:{id}:list` | 30 s   | POST/PUT/DELETE clubes                   |
-| `GET /clubesAdmin`    | `clubes:admin:list`    | 30 s   | POST/PUT/DELETE clubes                   |
-| `GET /tipouser`       | `tipouser:list`        | 120 s  | POST/PUT/DELETE tipouser                 |
-| `GET /mapas`          | `mapas:list`           | 60 s   | POST/PUT/DELETE mapas                    |
-| `GET /planos`         | `planos:list`          | 120 s  | POST/PUT/DELETE planos                   |
-| `GET /utilizadores`   | `utilizadores:list`    | 30 s   | PUT /me/plano, DELETE utilizadores       |
+| Recurso          | Cache Key              | TTL    | Invalidado por       |
+|------------------|------------------------|--------|----------------------|
+| `/stats`         | `stats`                | 60 s   | CRUD clubes/users    |
+| `/clubes`        | `clubes:org:{id}:list` | 30 s   | CRUD clubes          |
+| `/tipouser`      | `tipouser:list`        | 120 s  | CRUD tipouser        |
+| `/mapas`         | `mapas:list`           | 60 s   | CRUD mapas           |
+| `/planos`        | `planos:list`          | 120 s  | CRUD planos          |
+| `/utilizadores`  | `utilizadores:list`    | 30 s   | PUT /me/plano, DEL   |
 
 </details>
 
@@ -611,90 +479,6 @@ def cache_invalidate(*prefixes: str) -> None:
 | GET    | `/stats`          | `{clubes, utilizadores, tipousers, mapas}`      | —    | `stats` TTL 60 s               |
 | GET    | `/statstpuser`    | `{tipo_descricao: count, ...}`                  | JWT  | `statstpuser` TTL 60 s         |
 | GET    | `/registrations`  | `[{month: str, count: int}]` (12 meses)        | JWT  | `registrations:{year}` TTL 300 s |
-
-</details>
-
-<details>
-<summary><strong>Pydantic Schemas (Contratos)</strong></summary>
-
-```python
-# ──── Request ────
-class ClubeCreate(BaseModel):
-    nome: str
-    email: str | None = None
-    telefone: str | None = None
-    localidade: str | None = None
-    evento_at: Optional[date] = None
-
-class UtilizadorCreate(BaseModel):
-    username: str
-    password: str
-    tipo_id: int
-
-class TipoUserCreate(BaseModel):
-    descricao: str
-
-class MapaCreate(BaseModel):
-    descricao: str | None = None
-    latitude: float
-    longitude: float
-    clube_id: int
-
-class PlanoCreate(BaseModel):         
-    nome: str
-    preco: float = 0.0
-    limite_clubes: int = -1
-    limite_mapas: int = -1
-
-class CheckoutRequest(BaseModel):     
-    plano_id: int
-
-# ──── Response ────
-class ClubeResponse(ClubeCreate):
-    id: int
-    organization_id: int              # multi-tenancy
-
-class UtilizadorResponse(BaseModel):
-    id: int
-    username: str
-    tipo: TipoUserResponse
-    plano: PlanoResponse | None      
-    organization: OrganizationResponse | None  
-    created_at: datetime
-
-class PlanoResponse(BaseModel):      
-    id: int
-    nome: str | None
-    preco: float
-    limite_clubes: int
-    limite_mapas: int
-
-class OrganizationResponse(BaseModel): 
-    id: int
-    nome: str
-    created_at: datetime | None
-
-class MapaResponse(BaseModel):
-    id: int
-    descricao: str | None = None
-    latitude: float
-    longitude: float
-    clube_id: int
-
-class IngressarResponse(BaseModel):
-    mensagem:    str
-    clube_id:    int
-    clube_nome:  str
-    inscrito_em: datetime
-
-class NotificacaoResponse(BaseModel):
-    id:         int
-    tipo:       str
-    titulo:     str
-    mensagem:   str
-    lida:       bool
-    created_at: datetime
-```
 
 </details>
 
@@ -914,399 +698,73 @@ sequenceDiagram
 </details>
 
 <details>
-<summary><strong>Testes — Código Completo</strong></summary>
+<summary><strong>Testes — Detalhe</strong></summary>
 
-### Estrutura
+### Estratégia
 
-```
-api/tests/
-├── conftest.py          # Fixtures: TestClient, BD em memória, token helper
-├── test_auth.py         # Registo, login, token inválido
-├── test_clubes.py       # CRUD clubes + inscrição + duplicação
-├── test_utilizadores.py # CRUD utilizadores
-├── test_tipouser.py     # CRUD tipos
-├── test_mapas.py        # CRUD mapas
-└── test_stats.py        # Endpoints de estatísticas
-```
+- **SQLite in-memory** para BD de testes (sem PostgreSQL)
+- **Redis service container** no CI
+- **Dependency override** do `get_db` para injetar sessão de teste
+- Startup event desativado em testes (`on_startup.clear()`)
+- Coverage gate: build falha se < 75%
 
-### `conftest.py`
+### Edge Cases Testados
 
-```python
-import os
-os.environ["SECRET_KEY"] = "test-secret-key-do-not-use-in-production"
-os.environ["ALGORITHM"] = "HS256"
-os.environ.setdefault("MYSQL_HOST", "localhost")
-os.environ.setdefault("MYSQL_PORT", "5432")
-os.environ.setdefault("MYSQL_USER", "test")
-os.environ.setdefault("MYSQL_PASSWORD", "test")
-os.environ.setdefault("MYSQL_DATABASE", "test_db")
+| Cenário | Status Code | Ficheiro |
+|---------|-------------|----------|
+| Token JWT forjado/adulterado | 401 | `test_auth.py` |
+| Login com utilizador inexistente | 401 | `test_auth.py` |
+| Limite de clubes do plano atingido | 403 | `test_clubes.py` |
+| Inscrição duplicada em clube (UniqueConstraint) | 409 | `test_clubes.py` |
+| CRUD em recurso inexistente (clube, mapa, tipo, user) | 404 | `test_*.py` |
+| Acesso a rota protegida sem token | 401 | `test_auth.py` |
 
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from database import Base, get_db
-import auth, database
+</details>
 
-database.init_db = lambda: None
+<details>
+<summary><strong>Decisões Técnicas (ADR)</strong></summary>
 
-from main import app
-from models import TipoUserModel
+| Decisão | Porquê |
+|---------|--------|
+| **FastAPI** vs Django/Flask | OpenAPI automático, validação Pydantic nativa, DI com `Depends()`, ASGI async |
+| **Argon2id** vs bcrypt | Vencedor da PHC, resistente a GPU/ASIC |
+| **Stripe Checkout** (hosted) | Zero PCI compliance, subscrições recorrentes com redirect flow |
+| **Celery + Redis** para webhooks | Resposta < 200 ms ao Stripe, retry com backoff, idempotência por `event_id` |
+| **Multi-tenancy** por organização | `WHERE organization_id = user.organization_id` em queries, sem schema separation |
+| **RBAC** via `require_roles()` | FastAPI Dependency, enforcement server-side (3 roles: Admin/Gestor/Cliente) |
+| **UniqueConstraint** em `membro_clube` | Anti-duplicação a nível de BD, catch `IntegrityError` → 409 |
 
-import main as _main_module
-_main_module.init_db = lambda: None
+</details>
 
-SQLALCHEMY_TEST_URL = "sqlite:///./test.db"
-engine = create_engine(SQLALCHEMY_TEST_URL, connect_args={"check_same_thread": False})
-TestSession = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+<details>
+<summary><strong>Docker — Visão Geral</strong></summary>
 
-@pytest.fixture(autouse=True)
-def setup_db():
-    Base.metadata.create_all(bind=engine)
-    yield
-    Base.metadata.drop_all(bind=engine)
-
-@pytest.fixture()
-def db():
-    session = TestSession()
-    try:
-        yield session
-    finally:
-        session.close()
-
-@pytest.fixture()
-def client(db):
-    def override_get_db():
-        yield db
-    app.dependency_overrides[get_db] = override_get_db
-    app.dependency_overrides[auth.get_db] = override_get_db
-    with TestClient(app) as c:
-        yield c
-    app.dependency_overrides.clear()
-
-def _seed_tipo(db, descricao="admin"):
-    tipo = TipoUserModel(descricao=descricao)
-    db.add(tipo)
-    db.commit()
-    db.refresh(tipo)
-    return tipo
-
-@pytest.fixture()
-def tipo(db):
-    return _seed_tipo(db)
-
-@pytest.fixture()
-def auth_headers(client, db):
-    tipo = _seed_tipo(db)
-    client.post("/auth/", json={"username": "testuser", "password": "Str0ng!Pass", "tipo_id": tipo.id})
-    resp = client.post("/auth/token", data={"username": "testuser", "password": "Str0ng!Pass", "tipo_id": str(tipo.id)})
-    token = resp.json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}
-```
-
-### `test_auth.py`
-
-```python
-from tests.conftest import _seed_tipo
-
-def test_register_success(client, db):
-    _seed_tipo(db)
-    resp = client.post("/auth/", json={"username": "newuser", "password": "Str0ng!Pass", "tipo_id": 1})
-    assert resp.status_code == 201
-
-def test_register_duplicate_username(client, db):
-    _seed_tipo(db)
-    client.post("/auth/", json={"username": "dup", "password": "Pass1!abc", "tipo_id": 1})
-    resp = client.post("/auth/", json={"username": "dup", "password": "Pass2!abc", "tipo_id": 1})
-    assert resp.status_code == 400
-
-def test_login_returns_jwt(client, db):
-    _seed_tipo(db)
-    client.post("/auth/", json={"username": "testuser", "password": "Str0ng!Pass", "tipo_id": 1})
-    resp = client.post("/auth/token", data={"username": "testuser", "password": "Str0ng!Pass", "tipo_id": "1"})
-    assert resp.status_code == 200
-    assert "access_token" in resp.json()
-
-def test_login_wrong_password(client, db):
-    _seed_tipo(db)
-    client.post("/auth/", json={"username": "testuser", "password": "Str0ng!Pass", "tipo_id": 1})
-    resp = client.post("/auth/token", data={"username": "testuser", "password": "wrong", "tipo_id": "1"})
-    assert resp.status_code == 401
-
-def test_protected_route_without_token(client):
-    resp = client.get("/clubes")
-    assert resp.status_code == 401
-```
-
-### `test_clubes.py`
-
-```python
-def test_create_clube(client, auth_headers):
-    resp = client.post("/clubes", json={"nome": "Clube Teste", "email": "teste@clube.pt", "telefone": "912345678", "localidade": "Lisboa", "evento_at": "2026-06-15"}, headers=auth_headers)
-    assert resp.status_code == 200
-    assert resp.json()["nome"] == "Clube Teste"
-
-def test_list_clubes(client, auth_headers):
-    client.post("/clubes", json={"nome": "C1"}, headers=auth_headers)
-    client.post("/clubes", json={"nome": "C2"}, headers=auth_headers)
-    resp = client.get("/clubes", headers=auth_headers)
-    assert len(resp.json()) == 2
-
-def test_update_clube(client, auth_headers):
-    create = client.post("/clubes", json={"nome": "Old"}, headers=auth_headers)
-    resp = client.put(f"/clubes/{create.json()['id']}", json={"nome": "New"}, headers=auth_headers)
-    assert resp.json()["nome"] == "New"
-
-def test_delete_clube(client, auth_headers):
-    create = client.post("/clubes", json={"nome": "ToDelete"}, headers=auth_headers)
-    resp = client.delete(f"/clubes/{create.json()['id']}", headers=auth_headers)
-    assert resp.status_code == 204
-
-def test_delete_clube_404(client, auth_headers):
-    assert client.delete("/clubes/9999", headers=auth_headers).status_code == 404
-
-def test_ingressar_clube(client, auth_headers):
-    create = client.post("/clubes", json={"nome": "Ingresso"}, headers=auth_headers)
-    resp = client.post(f"/clubes/{create.json()['id']}/ingressar", headers=auth_headers)
-    assert resp.status_code == 201
-
-def test_ingressar_duplicate_409(client, auth_headers):
-    create = client.post("/clubes", json={"nome": "Dup"}, headers=auth_headers)
-    cid = create.json()["id"]
-    client.post(f"/clubes/{cid}/ingressar", headers=auth_headers)
-    assert client.post(f"/clubes/{cid}/ingressar", headers=auth_headers).status_code == 409
-
-def test_ingressar_clube_inexistente_404(client, auth_headers):
-    assert client.post("/clubes/9999/ingressar", headers=auth_headers).status_code == 404
-```
-
-### Cobertura
+| Serviço    | Imagem             | Porta | Função                            |
+|------------|--------------------| ------|-----------------------------------|
+| `db`       | `postgres:15`      | 5432  | PostgreSQL + healthcheck          |
+| `redis`    | `redis:7-alpine`   | 6379  | Cache + Celery broker             |
+| `api`      | `python:3.11-slim` | 8000  | FastAPI + Uvicorn                 |
+| `worker`   | `python:3.11-slim` | —     | Celery worker (webhooks + emails) |
+| `frontend` | `node:20`          | 3000  | Nuxt 3 SSR                        |
 
 ```bash
-pytest tests/ --cov=. --cov-report=term-missing
+docker compose up --build        # sobe os 5 containers
+docker compose logs -f api       # logs do backend
 ```
-
-| Módulo            | Cobertura Alvo |
-|-------------------|----------------|
-| `auth.py`         | ≥ 90%          |
-| `main.py`         | ≥ 85%          |
-| `models.py`       | ≥ 95%          |
-| `database.py`     | ≥ 80%          |
-| `cache.py`        | ≥ 90%          |
-| `task.py`         | ≥ 80%          |
-| `email_service.py`| ≥ 75%          |
-
-</details>
-
-<details>
-<summary><strong>Architecture Decision Records (ADR)</strong></summary>
-
-### ADR-001: FastAPI em vez de Django REST / Flask
-
-**Status:** Aceite  
-**Decisão:** FastAPI com Pydantic + SQLAlchemy — documentação OpenAPI automática, validação nativa, DI com `Depends()`, performance ASGI.
-
-### ADR-002: Argon2 em vez de bcrypt
-
-**Status:** Aceite  
-**Decisão:** Argon2id via `passlib[argon2]` — vencedor da Password Hashing Competition, resistente a GPU/ASIC, parâmetros configuráveis.
-
-### ADR-003: JWT via Bearer token
-
-**Status:** Aceite  
-**Decisão:** JWT no header `Authorization: Bearer <token>`. Login devolve `{access_token, token_type}`, frontend gere armazenamento. Stateless, compatível com `OAuth2PasswordBearer` do FastAPI.
-
-### ADR-004: UniqueConstraint em membro_clube
-
-**Status:** Aceite  
-**Decisão:** `UniqueConstraint("utilizador_id", "clube_id")` a nível de BD + catch `IntegrityError` → HTTP 409. Impossível bypass via SQL direto ou race conditions.
-
-### ADR-005: SSR (Nuxt) com `<ClientOnly>`
-
-**Status:** Aceite  
-**Decisão:** SSR por default para SEO. FullCalendar e Leaflet renderizados apenas client-side via `<ClientOnly>` com skeleton fallback.
-
-### ADR-006: CORS wildcard em dev
-
-**Status:** Aceite  
-**Decisão:** `allow_origins=["*"]` com `allow_credentials=False` em dev (Bearer tokens não precisam de cookies). Em produção, restringir ao domínio real.
-
-### ADR-007: Monólito modular
-
-**Status:** Aceite  
-**Decisão:** Monorepo com módulos separados (`main.py`, `auth.py`, `models.py`, `database.py`, `cache.py`). Deploy simples, sem overhead de microserviços.
-
-### ADR-008: Redis como cache e message broker
-
-**Status:** Aceite  
-**Decisão:** Redis 7 serve dupla função: cache com TTL via `SETEX` + invalidação por `SCAN`/`DEL` por prefixo, e message broker + result backend do Celery. Uma única instância Redis simplifica a infraestrutura, elimina estado em memória do processo API e permite escalamento horizontal de workers.
-
-### ADR-009: Stripe Checkout para pagamentos
-
-**Status:** Aceite  
-**Decisão:** Stripe Checkout Sessions com modo `subscription` para planos recorrentes. Evita complexidade de PCI compliance — toda a UI de pagamento é hosted pelo Stripe. Redirect-based flow com `success_url` e `cancel_url` que inclui `plano_id`.
-
-### ADR-010: Multi-tenancy por organização
-
-**Status:** Aceite  
-**Decisão:** Cada utilizador pertence a uma `organization`. Clubes são scoped à organização do utilizador (`ClubeModel.organization_id`). Admins podem ver todos via `/clubesAdmin`. Isolamento via query filter `WHERE organization_id = user.organization_id`.
-
-### ADR-011: RBAC com require_roles()
-
-**Status:** Aceite  
-**Decisão:** Middleware `require_roles(*roles)` como FastAPI Dependency. 3 roles: Administrador (CRUD total), Gestor (criar/editar), Cliente (leitura). Enforcement a nível de endpoint, não de frontend.
-
-### ADR-012: Celery para processamento assíncrono de webhooks
-
-**Status:** Aceite  
-**Decisão:** Stripe webhooks são recebidos pela API e despachados para um Celery worker via Redis. Permite resposta imediata ao Stripe (< 200 ms), retry automático com backoff exponencial (max 5 tentativas) e idempotência via tabela `stripe_events`.
-
-### ADR-013: Notificações por email via SMTP
-
-**Status:** Aceite  
-**Decisão:** Emails transacionais (pagamento falhado/sucedido) via `smtplib` com STARTTLS no Gmail (porta 587). Processados no worker Celery para não bloquear a API. Templates HTML inline com formatação responsiva.
-
-</details>
-
-<details>
-<summary><strong>Docker — Configuração Completa</strong></summary>
-
-### Serviços
-
-| Serviço    | Imagem Base        | Container          | Porta  | Descrição                              |
-|------------|--------------------|--------------------|--------|----------------------------------------|
-| `db`       | `postgres:15`      | `clubes_db`        | 5432   | PostgreSQL com volume persistente + healthcheck |
-| `redis`    | `redis:7-alpine`   | `clubes_redis`     | 6379   | Cache + Celery broker/backend          |
-| `api`      | `python:3.11-slim` | `clubes_api`       | 8000   | FastAPI + Uvicorn                      |
-| `worker`   | `python:3.11-slim` | `clubes_worker`    | —      | Celery worker (webhooks + emails)      |
-| `frontend` | `node:20`          | `clubes_frontend`  | 3000   | Nuxt 3 SSR                             |
-
-### `docker-compose.yml`
-
-```yaml
-services:
-  db:
-    image: postgres:15
-    container_name: clubes_db
-    restart: always
-    environment:
-      POSTGRES_USER: ${MYSQL_USER}
-      POSTGRES_PASSWORD: ${MYSQL_PASSWORD}
-      POSTGRES_DB: ${MYSQL_DB}
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - clubes_net
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  redis:
-    image: redis:7-alpine
-    container_name: clubes_redis
-    restart: always
-    ports:
-      - "6379:6379"
-    networks:
-      - clubes_net
-
-  api:
-    build: ./api
-    container_name: clubes_api
-    ports:
-      - "8000:8000"
-    env_file:
-      - ./api/.env
-    environment:
-      - REDIS_URL=redis://redis:6379/0
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_started
-    networks:
-      - clubes_net
-
-  worker:
-    build: ./api
-    container_name: clubes_worker
-    command: celery -A app.celery_app:celery worker --loglevel=info
-    env_file:
-      - ./api/.env
-    environment:
-      - REDIS_URL=redis://redis:6379/0
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_started
-    networks:
-      - clubes_net
-
-  frontend:
-    build: ./nuxt-app
-    container_name: clubes_frontend
-    ports:
-      - "3000:3000"
-    depends_on:
-      - api
-    networks:
-      - clubes_net
-
-volumes:
-  postgres_data:
-
-networks:
-  clubes_net:
-    driver: bridge
-```
-
-### Dockerfiles
-
-**API** (`api/Dockerfile`):
-```dockerfile
-FROM python:3.11-slim
-WORKDIR /app
-COPY app/ .
-RUN pip install -r requirements.txt
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
-```
-
-**Frontend** (`nuxt-app/Dockerfile`):
-```dockerfile
-FROM node:20
-WORKDIR /app
-COPY package*.json ./
-RUN npm install
-COPY . .
-RUN npm run build
-CMD ["npm", "run", "dev"]
-```
-
-### Diagrama de Rede
 
 ```mermaid
 graph LR
-    subgraph clubes_net [Docker Network — clubes_net]
-        DB["clubes_db<br/>postgres:15<br/>:5432"]
-        RD["clubes_redis<br/>redis:7-alpine<br/>:6379"]
-        API["clubes_api<br/>python:3.11-slim<br/>:8000"]
-        WK["clubes_worker<br/>python:3.11-slim<br/>Celery"]
-        FE["clubes_frontend<br/>node:20<br/>:3000"]
+    subgraph clubes_net [Docker Network]
+        DB["db :5432"]
+        RD["redis :6379"]
+        API["api :8000"]
+        WK["worker"]
+        FE["frontend :3000"]
     end
-
-    FE -->|depends_on| API
-    API -->|service_healthy| DB
-    API -->|service_started| RD
-    WK -->|service_healthy| DB
-    WK -->|broker + backend| RD
-    API -->|"task.delay()"| RD
-    Browser([Browser]) -->|:3000| FE
-    Browser -->|:8000| API
+    FE --> API --> DB
+    API --> RD
+    WK --> DB
+    WK --> RD
 ```
 
 </details>
@@ -1314,77 +772,27 @@ graph LR
 <details>
 <summary><strong>Setup Local (sem Docker)</strong></summary>
 
-### Variáveis de Ambiente
-
-**`api/.env`** — Backend:
-```env
-MYSQL_HOST=localhost
-MYSQL_PORT=5432
-MYSQL_USER=<user>
-MYSQL_PASSWORD=<password>
-MYSQL_DATABASE=federacao
-SECRET_KEY=<random-256-bit-hex>
-ALGORITHM=HS256
-STRIPE_SECRET_KEY=sk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=<gmail>
-SMTP_PASSWORD=<app-password>
-SMTP_FROM=<gmail>
-FRONTEND_URL=http://localhost:3000
-REDIS_URL=redis://localhost:6379/0
-```
-
-**`.env`** (raiz) — Docker Compose:
-```env
-MYSQL_USER=<user>
-MYSQL_PASSWORD=<password>
-MYSQL_DB=federacao
-SECRET_KEY=<random-256-bit-hex>
-ALGORITHM=HS256
-```
-
-### Backend
-
 ```bash
-cd api/app
-pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
-# → http://localhost:8000/docs (Swagger UI)
-```
+# Copiar .env de exemplo e preencher
+cp api/.env.example api/.env
 
-### Celery Worker
+# Backend
+cd api/app && pip install -r requirements.txt
+uvicorn main:app --host 0.0.0.0 --port 8000
+# → http://localhost:8000/docs
 
-```bash
-cd api
-celery -A app.celery_app:celery worker --loglevel=info
-```
+# Worker (noutra tab)
+cd api && celery -A app.celery_app:celery worker --loglevel=info
 
-### Stripe CLI (Webhooks Locais)
-
-```bash
-# Instalar: https://docs.stripe.com/stripe-cli
-stripe login
-stripe listen --forward-to localhost:8000/stripe/webhook
-# → Copiar o signing secret (whsec_...) para STRIPE_WEBHOOK_SECRET
-```
-
-Testar eventos manualmente:
-```bash
-stripe trigger invoice.payment_failed      # → email de falha + revert para Free
-stripe trigger invoice.payment_succeeded   # → email de confirmação
-stripe trigger checkout.session.completed  # → ativa plano
-```
-
-### Frontend
-
-```bash
-cd nuxt-app
-npm install
-npm run dev
+# Frontend (noutra tab)
+cd nuxt-app && npm install && npm run dev
 # → http://localhost:3000
+
+# Stripe webhooks locais (noutra tab)
+stripe listen --forward-to localhost:8000/stripe/webhook
 ```
+
+Variáveis necessárias: `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`, `SECRET_KEY`, `ALGORITHM`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `REDIS_URL`, `SMTP_*`.
 
 </details>
 

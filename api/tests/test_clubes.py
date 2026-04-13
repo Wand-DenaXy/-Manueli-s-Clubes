@@ -61,3 +61,33 @@ def test_ingressar_duplicate_409(client, auth_headers):
 def test_ingressar_clube_inexistente_404(client, auth_headers):
     resp = client.post("/clubes/9999/ingressar", headers=auth_headers)
     assert resp.status_code == 404
+
+
+def test_create_clube_plan_limit_enforced(client, db):
+    """Users on Free plan (limite_clubes=1) get 403 after hitting the limit."""
+    from tests.conftest import _seed_organization, _seed_plano, _seed_tipo
+
+    org = _seed_organization(db)
+    plano = _seed_plano(db, nome="Starter", preco=0.0, limite_clubes=1, limite_mapas=1)
+    tipo = _seed_tipo(db, descricao="Administrador")
+
+    client.post("/auth/", json={
+        "username": "limituser",
+        "password": "Str0ng!Pass",
+        "tipo_id": tipo.id,
+        "plano_id": plano.id,
+        "organization_id": org.id,
+    })
+    resp = client.post("/auth/token", data={
+        "username": "limituser",
+        "password": "Str0ng!Pass",
+    })
+    headers = {"Authorization": f"Bearer {resp.json()['access_token']}"}
+
+    # First clube — within limit
+    r1 = client.post("/clubes", json={"nome": "Club1"}, headers=headers)
+    assert r1.status_code == 201
+
+    # Second clube — exceeds limit → 403
+    r2 = client.post("/clubes", json={"nome": "Club2"}, headers=headers)
+    assert r2.status_code == 403
