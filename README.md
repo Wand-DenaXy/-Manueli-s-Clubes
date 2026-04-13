@@ -1,6 +1,6 @@
 <div align="center">
 
-# Manueli's Clubes
+# ✦ Manueli's Clubes
 
 **SaaS full-stack de gestão de clubes com pagamentos Stripe reais, webhooks assíncronos, multi-tenancy e RBAC.**
 
@@ -78,22 +78,25 @@ graph LR
 
 **Edge cases testados:** JWT forjado → 401 · limite plano → 403 · inscrição duplicada → 409 · webhook inválido → 400 · evento duplicado → idempotência · Stripe API error → 502 · SMTP off → no-op
 
-<details>
-<summary>Breakdown por ficheiro</summary>
+## Screenshots
 
-```
-test_auth.py          7    register, JWT, wrong password, tampered token
-test_clubes.py        9    CRUD, ingressar, duplicate 409, plan limit 403
-test_email.py         5    SMTP config, send ok/fail, payment emails
-test_endpoints.py    14    /me, /clubesAdmin, /organizations, /notificacoes, /planos
-test_mapas.py         7    CRUD + 404s
-test_stats.py         5    stats, statstpuser, registrations + no auth
-test_tipouser.py      6    CRUD + 404s
-test_utilizadores.py  4    CRUD + 404
-test_webhooks.py     15    webhook validation, checkout flow, Celery tasks
-```
+### Dashboard — KPIs + Chart.js
 
-</details>
+<img width="1000" height="500" alt="Dashboard" src="nuxt-app/assets/images/DashboardManuel.PNG" />
+
+> Cards de métricas em tempo real, gráfico de registos mensais (line) e distribuição por role (doughnut). Dados da API com cache Redis.
+
+### Mapa Interativo — Leaflet.js
+
+<img width="1000" height="500" alt="Mapas" src="nuxt-app/assets/images/ManuelMapas.PNG" />
+
+> Dark-themed map com marcadores GPS dos clubes, painel lateral e formulário de coordenadas.
+
+### Login — JWT + Argon2
+
+<img width="1000" height="500" alt="Login" src="nuxt-app/assets/images/ManuelLogin.PNG" />
+
+> Autenticação com 3 roles (Admin/Gestor/Cliente). Passwords hashed com Argon2id. Token JWT 30 min.
 
 ---
 
