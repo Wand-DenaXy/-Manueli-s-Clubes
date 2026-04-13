@@ -27,14 +27,22 @@
 
 ## O que é
 
-Plataforma SaaS para federações e organizações desportivas gerirem clubes, membros, eventos e pagamentos — com multi-tenancy, RBAC (3 roles), subscrições Stripe recorrentes e processamento assíncrono de webhooks.
+Plataforma SaaS para federações e organizações desportivas gerirem **clubes, membros, eventos e pagamentos**.
 
-| | |
-|---|---|
-| **34 endpoints** REST (auth, CRUD, stats, pagamentos, webhooks) | **72 testes** com coverage gate ≥ 75% — [ver CI](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions) |
-| **9 tabelas** ORM + 16 Pydantic schemas | **Stripe Checkout** + webhooks Celery (retry + idempotência) |
-| **RBAC** — Admin · Gestor · Cliente | **Redis** cache (TTL + invalidação) + broker Celery |
-| **Multi-tenancy** por organização | **Docker Compose** — 5 containers |
+> Multi-tenancy · RBAC (3 roles) · Stripe Checkout + Webhooks · Celery (retry + idempotência) · Redis cache · 72 testes · CI/CD
+
+---
+
+## Planos
+
+| | Free | Pro | Enterprise |
+|---|:---:|:---:|:---:|
+| **Preço** | €0 | €9.99/mês | €29.99/mês |
+| **Clubes** | 3 | 15 | Ilimitado |
+| **Mapas** | 1 | 20 | Ilimitado |
+| **Pagamento** | — | Stripe Checkout | Stripe Checkout |
+
+> Plano enforced server-side: `403 Limite de X clube(s) atingido`. Upgrade via Stripe Checkout (subscriptions). Downgrade automático em `invoice.payment_failed`.
 
 ---
 
@@ -44,27 +52,7 @@ Plataforma SaaS para federações e organizações desportivas gerirem clubes, m
 |---------|----------|-------|
 | Python 3.11 · FastAPI · SQLAlchemy | Nuxt 3 · Vue 3 · Bootstrap 5 | PostgreSQL 15 · Redis 7 |
 | Celery 5.4 · Stripe 8.4 | Chart.js · Leaflet · FullCalendar | Docker Compose · GitHub Actions |
-| JWT (HS256) · Argon2id · SMTP | SweetAlert2 | ruff (lint) · pytest-cov |
-
----
-
-## CI/CD
-
-[![CI](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions/workflows/ci.yml/badge.svg)](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions)
-
-Cada push/PR dispara **3 jobs obrigatórios** — todos têm de passar para o Docker build correr:
-
-| Job | Falha se… |
-|-----|-----------|
-| **Testes + Coverage** | Qualquer teste falhar **ou** coverage < 75% |
-| **Lint (ruff)** | Qualquer violação de código |
-| **Docker Build** | Imagem não compilar |
-
-```
-72 tests passed · coverage ≥ 75% · lint clean · Docker OK
-```
-
-> 📂 [ci.yml](.github/workflows/ci.yml) · 🔗 [GitHub Actions](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions)
+| JWT (HS256) · Argon2id · SMTP | SweetAlert2 | ruff · pytest-cov |
 
 ---
 
@@ -93,15 +81,34 @@ Cada push/PR dispara **3 jobs obrigatórios** — todos têm de passar para o Do
 ## Quick Start
 
 ```bash
+# 1. Clonar
 git clone https://github.com/Wand-DenaXy/-Manueli-s-Clubes.git
 cd -Manueli-s-Clubes
-docker compose up --build        # 5 containers: DB + Redis + API + Worker + Frontend
+
+# 2. Configurar variáveis de ambiente
+#    → .env (raiz): MYSQL_USER, MYSQL_PASSWORD, MYSQL_DB
+#    → api/.env:   MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_PASSWORD,
+#                  MYSQL_DATABASE, SECRET_KEY, ALGORITHM,
+#                  STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET,
+#                  SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM
+
+# 3. Lançar tudo (5 containers: DB + Redis + API + Worker + Frontend)
+docker compose up --build
+
+# 4. Stripe CLI — encaminhar webhooks para localhost
+stripe listen --forward-to localhost:8000/stripe/webhook
+#    → Copiar o signing secret (whsec_...) para STRIPE_WEBHOOK_SECRET no api/.env
+
+# 5. Testar webhooks manualmente
+stripe trigger invoice.payment_failed
+stripe trigger checkout.session.completed
 ```
 
 | Serviço | URL |
 |---------|-----|
 | Frontend | http://localhost:3000 |
-| API Swagger | http://localhost:8000/docs |
+| API (Swagger) | http://localhost:8000/docs |
+| Stripe CLI | localhost:8000/stripe/webhook |
 | PostgreSQL | localhost:5432 |
 | Redis | localhost:6379 |
 
