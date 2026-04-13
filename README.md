@@ -6,9 +6,11 @@
 
 *Criar clubes · Gerir membros · Calendário de eventos · Mapa interativo · Planos de subscrição · Notificações por email*
 
+<!-- TODO: Substituir a imagem abaixo por um GIF de demonstração do site (navegação completa: landing → login → dashboard → clubes → mapas → calendário → planos) -->
 <img width="1000" height="500" alt="ManueliClube" src="https://github.com/user-attachments/assets/786aee57-cdbc-4be2-823b-51c221d7e4b8" />
 
 <p>
+  <a href="https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions"><img alt="CI" src="https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions/workflows/ci.yml/badge.svg" /></a>
   <img alt="Python" src="https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white" />
   <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white" />
   <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-15-4169E1?logo=postgresql&logoColor=white" />
@@ -34,7 +36,7 @@
 | Métrica | Valor |
 |---------|-------|
 | Endpoints REST | **34** (auth, CRUD, stats, pagamentos, webhooks, perfil, notificações) |
-| Testes automatizados | **40/40 passed** (pytest + httpx) |
+| Testes automatizados | **40/40 passed** (pytest + httpx) — [CI pipeline](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions) |
 | Modelos ORM | **9** tabelas + **16** Pydantic schemas |
 | Segurança | JWT + Argon2id + RBAC (3 roles) |
 | Pagamentos | Stripe Checkout + Webhooks (subscrições recorrentes) |
@@ -46,6 +48,7 @@
 | Calendário | FullCalendar com inscrição em eventos (409 anti-duplicação) |
 | Cache | Redis com TTL + invalidação por prefixo |
 | Infraestrutura | Docker Compose (5 containers: DB + Redis + API + Worker + Frontend) |
+| CI/CD | GitHub Actions — testes + lint + Docker build a cada push/PR |
 
 ---
 
@@ -160,6 +163,22 @@ stripe trigger checkout.session.completed
 
 ---
 
+## CI/CD — GitHub Actions
+
+[![CI](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions/workflows/ci.yml/badge.svg)](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions)
+
+A cada **push** (`main`, `develop`) ou **pull request** (`main`), o pipeline corre automaticamente 3 jobs:
+
+| Job | O que faz | Ferramentas |
+|-----|-----------|-------------|
+| **Testes** | Instala dependências, levanta Redis como service container, corre `pytest tests/ -v` com variáveis de CI | Python 3.11, pytest, httpx, Redis 7 |
+| **Lint** | Verifica qualidade de código com análise estática | ruff |
+| **Docker Build** | Compila a imagem Docker da API (sem push) para validar o Dockerfile | Docker Buildx, cache GHA |
+
+> 📂 [Ver pipeline completo](.github/workflows/ci.yml) · 🔗 [Ver runs no GitHub Actions](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions)
+
+---
+
 ## Testes — 40/40 Passed
 
 ```bash
@@ -174,6 +193,8 @@ tests/test_tipouser.py     ✅ 7 passed   (CRUD + 404)
 tests/test_mapas.py        ✅ 9 passed   (CRUD + clube inexistente + 404)
 tests/test_stats.py        ✅ 5 passed   (stats, statstpuser, registrations, auth guard)
 ```
+
+Os testes correm tanto localmente como no CI — a configuração usa **SQLite in-memory** e **Redis como service container**, sem depender de infraestrutura externa.
 
 ---
 
@@ -195,6 +216,8 @@ tests/test_stats.py        ✅ 5 passed   (stats, statstpuser, registrations, au
 | UI         | Bootstrap 5, SweetAlert2           | —         |
 | Viz        | Chart.js, Leaflet.js, FullCalendar | —         |
 | Container  | Docker + Docker Compose            | —         |
+| CI/CD      | GitHub Actions (pytest + ruff + Docker Buildx) | —   |
+| Lint       | ruff                               | —         |
 
 ---
 
@@ -205,6 +228,9 @@ tests/test_stats.py        ✅ 5 passed   (stats, statstpuser, registrations, au
 ├── docker-compose.yml               # Orquestração: db + redis + api + worker + frontend
 ├── .env                             # Variáveis para Docker Compose (MYSQL_USER, etc.)
 ├── package.json                     # deps globais (Bootstrap, Chart.js, Leaflet)
+├── .github/
+│   └── workflows/
+│       └── ci.yml                   # CI pipeline: testes + lint + Docker build
 │
 ├── api/                             # Backend (FastAPI + Celery)
 │   ├── Dockerfile                   # python:3.11-slim → uvicorn :8000
