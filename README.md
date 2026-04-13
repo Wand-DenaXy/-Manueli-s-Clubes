@@ -1,10 +1,8 @@
 <div align="center">
 
-# ✦ Manueli's Clubes
+# Manueli's Clubes
 
-**SaaS full-stack de gestão de clubes** — pagamentos Stripe reais, webhooks assíncronos, multi-tenancy e RBAC
-
-*Criar clubes · Gerir membros · Calendário de eventos · Mapa interativo · Planos de subscrição · Notificações por email*
+**Plataforma SaaS de gestão de clubes** — pagamentos Stripe reais, webhooks assíncronos, multi-tenancy e RBAC
 
 <img width="1000" height="500" alt="ManueliClube" src="https://github.com/user-attachments/assets/786aee57-cdbc-4be2-823b-51c221d7e4b8" />
 
@@ -22,39 +20,54 @@
 
 ---
 
+**34** endpoints REST · **72** testes · **93%** coverage · **9** modelos ORM · **5** Docker containers · **3** roles RBAC
+
+---
+
 ## Porquê este projeto?
 
-Queria construir algo que **funcionasse como um produto real**, não apenas mais um CRUD académico. Clubes desportivos lidam com membros, eventos, mapas e pagamentos — um domínio complexo o suficiente para justificar multi-tenancy, RBAC, subscrições recorrentes e processamento assíncrono. O objetivo: provar que consigo levar uma ideia de zero a produção com a mesma stack e práticas que uma empresa usaria.
+Queria construir algo que **funcionasse como um produto real**, não mais um CRUD académico. Clubes desportivos lidam com membros, eventos, mapas e pagamentos — complexo o suficiente para justificar multi-tenancy, RBAC, subscrições recorrentes e webhooks assíncronos. O objetivo: levar uma ideia de zero a produção com stack e práticas de empresa.
 
 ---
 
-## O Projeto em Números
+## O que o torna interessante
 
-| | |
-|---|---|
-| **34 endpoints** REST — auth, CRUD, stats, pagamentos, webhooks | **72 testes** · 93% coverage · CI gate ≥ 75% |
-| **9 modelos** ORM + 16 schemas Pydantic | **Stripe Checkout** (subscrições) + webhooks Celery |
-| **RBAC** — Admin · Gestor · Cliente | **Redis** cache TTL + invalidação + broker Celery |
-| **Multi-tenancy** por organização | **Docker Compose** — 5 containers production-ready |
-| **Emails automáticos** a cada pagamento | **CI/CD** — testes + lint + Docker build a cada push |
+- **Stripe Checkout reais** — subscrições recorrentes (Free €0 · Pro €9.99 · Enterprise €29.99), não mocks
+- **Webhooks assíncronos** — Celery com retry (backoff exponencial, max 5), idempotência por `event_id`
+- **Emails transacionais** — confirmação de pagamento ou aviso de falha + rollback automático para Free
+- **Multi-tenancy + RBAC** — isolamento por organização, 3 roles server-side (`require_roles()`)
+- **Redis** — cache com TTL + invalidação por prefixo + broker Celery, numa instância
+- **CI com 3 gates** — testes + coverage ≥ 75%, lint (ruff), Docker build — falha = bloqueia merge
 
 ---
 
-## Planos de Subscrição
+## Planos
 
-Subscrições recorrentes via **Stripe Checkout** (`mode=subscription`). Limites enforced server-side.
+Limites enforced server-side. Falha de pagamento → plano revertido para Free + email.
 
-| Plano | Preço/mês | Clubes | Mapas | Pagamento |
-|-------|-----------|--------|-------|-----------|
-| **Free** | €0 | 3 | 1 | — |
-| **Pro** | €9.99 | 15 | 20 | Stripe Checkout → webhook → email |
-| **Enterprise** | €29.99 | ∞ | ∞ | Stripe Checkout → webhook → email |
+| | Free | Pro | Enterprise |
+|---|---|---|---|
+| **Preço** | €0 | €9.99/mês | €29.99/mês |
+| **Clubes** | 3 | 15 | ∞ |
+| **Mapas** | 1 | 20 | ∞ |
+| **Checkout** | — | Stripe → webhook → email | Stripe → webhook → email |
 
-A cada pagamento, o sistema envia **email HTML automático**:
-- ✅ **Sucesso** → confirmação de pagamento processado
-- ❌ **Falha** → aviso + plano revertido para Free + link para atualizar em `/planos`
+---
 
-Webhooks processados via **Celery** com retry (backoff exponencial, max 5), idempotência por `event_id`.
+## Arquitetura
+
+```mermaid
+graph LR
+    Browser -->|:3000| Nuxt[Nuxt 3 SSR]
+    Nuxt -->|JWT| API[FastAPI :8000]
+    API --> DB[(PostgreSQL)]
+    API --> Redis[(Redis)]
+    Stripe -->|Webhooks| API
+    API -->|.delay| Worker[Celery Worker]
+    Worker --> DB
+    Worker --> Redis
+    Worker -->|SMTP TLS| Email[Gmail]
+```
 
 ---
 
@@ -64,82 +77,62 @@ Webhooks processados via **Celery** com retry (backoff exponencial, max 5), idem
 |---------|----------|-------|
 | Python 3.11 · FastAPI · SQLAlchemy | Nuxt 3 · Vue 3 · Bootstrap 5 | PostgreSQL 15 · Redis 7 |
 | Celery 5.4 · Stripe 8.4 | Chart.js · Leaflet · FullCalendar | Docker Compose · GitHub Actions |
-| JWT (HS256) · Argon2id · SMTP | SweetAlert2 | ruff (lint) · pytest-cov |
+| JWT (HS256) · Argon2id · SMTP | SweetAlert2 | ruff · pytest-cov |
 
 ---
 
+## Qualidade
+
 [![CI](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions/workflows/ci.yml/badge.svg)](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions)
 
-Cada push/PR dispara **3 jobs obrigatórios** — todos têm de passar para o Docker build correr:
-
-| Job | Falha se… |
-|-----|-----------|
-| **Testes + Coverage** | Qualquer teste falhar **ou** coverage < 75% |
-| **Lint (ruff)** | Qualquer violação de código |
-| **Docker Build** | Imagem não compilar |
-
 ```
-72 tests passed · coverage 93% (gate ≥ 75%) · lint clean · Docker OK
+72 tests · 93% coverage · lint clean · Docker OK
 ```
 
-> 📂 [ci.yml](.github/workflows/ci.yml) · 🔗 [GitHub Actions](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions)
+**Edge cases testados:** JWT forjado → 401 · limite plano → 403 · inscrição duplicada → 409 · webhook inválido → 400 · evento duplicado → idempotência · Stripe API error → 502 · SMTP off → no-op
 
+<details>
+<summary>Breakdown por ficheiro</summary>
 
-## Screenshots
+```
+test_auth.py          7    register, JWT, wrong password, tampered token
+test_clubes.py        9    CRUD, ingressar, duplicate 409, plan limit 403
+test_email.py         5    SMTP config, send ok/fail, payment emails
+test_endpoints.py    14    /me, /clubesAdmin, /organizations, /notificacoes, /planos
+test_mapas.py         7    CRUD + 404s
+test_stats.py         5    stats, statstpuser, registrations + no auth
+test_tipouser.py      6    CRUD + 404s
+test_utilizadores.py  4    CRUD + 404
+test_webhooks.py     15    webhook validation, checkout flow, Celery tasks
+```
 
-<img width="1000" height="500" alt="Dashboard" src="nuxt-app/assets/images/DashboardManuel.PNG" />
-
-> **Dashboard** — KPIs em tempo real + Chart.js (line + doughnut). Cache Redis.
-
-<img width="1000" height="500" alt="Mapas" src="nuxt-app/assets/images/ManuelMapas.PNG" />
-
-> **Mapa Interativo** — Leaflet.js, marcadores GPS dos clubes, painel lateral.
-
-<img width="1000" height="500" alt="Login" src="nuxt-app/assets/images/ManuelLogin.PNG" />
-
-> **Login** — 3 roles · Argon2id · JWT 30 min.
+</details>
 
 ---
 
 ## Quick Start
 
 ```bash
-git clone https://github.com/Wand-DenaXy/-Manueli-s-Clubes.git
-cd -Manueli-s-Clubes
-docker compose up --build          # 5 containers prontos
-# Frontend → http://localhost:3000   API Docs → http://localhost:8000/docs
+git clone https://github.com/Wand-DenaXy/-Manueli-s-Clubes.git && cd -Manueli-s-Clubes
+docker compose up --build
+# http://localhost:3000 (frontend)   http://localhost:8000/docs (API)
 ```
 
 ---
 
-## Testes & CI
+## Screenshots
 
-[![CI](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions/workflows/ci.yml/badge.svg)](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions)
+<img width="1000" height="500" alt="Dashboard" src="nuxt-app/assets/images/DashboardManuel.PNG" />
 
-```
-72 tests · 93% coverage · lint clean · Docker build OK
-```
+> **Dashboard** — KPIs + Chart.js (line + doughnut). Cache Redis.
 
-Cada push dispara **3 jobs obrigatórios** — testes + coverage (≥ 75%), lint (ruff), Docker build.
+<img width="1000" height="500" alt="Mapas" src="nuxt-app/assets/images/ManuelMapas.PNG" />
 
-Edge cases: JWT forjado → 401 · username duplicado → 400 · limite plano → 403 · inscrição duplicada → 409 · webhook inválido → 400 · evento duplicado → idempotência · Stripe API error → 502 · SMTP off → no-op.
+> **Mapa** — Leaflet.js, marcadores GPS, painel lateral.
 
-<details>
-<summary>Breakdown por ficheiro</summary>
+<img width="1000" height="500" alt="Login" src="nuxt-app/assets/images/ManuelLogin.PNG" />
 
-```
-test_auth.py          7 passed   register, JWT, wrong password, tampered token, ...
-test_clubes.py        9 passed   CRUD, ingressar, duplicate 409, plan limit 403
-test_email.py         5 passed   SMTP config, send ok/fail, payment emails
-test_endpoints.py    14 passed   /me, /clubesAdmin, /organizations, /notificacoes, /planos CRUD
-test_mapas.py         7 passed   CRUD + 404s
-test_stats.py         5 passed   stats, statstpuser, registrations + no auth
-test_tipouser.py      6 passed   CRUD + 404s
-test_utilizadores.py  4 passed   CRUD + 404
-test_webhooks.py     15 passed   webhook validation, checkout flow, Celery task processing
-```
-
-</details>
+> **Login** — 3 roles · Argon2id · JWT 30 min.
 
 ---
 
