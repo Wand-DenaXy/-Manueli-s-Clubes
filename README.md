@@ -22,7 +22,7 @@
 
 ---
 
-## Porquê este projeto?
+## ✦ Porquê este projeto?
 
 Queria construir algo que **funcionasse como um produto real**, não apenas mais um CRUD académico. Clubes desportivos lidam com membros, eventos, mapas e pagamentos — um domínio complexo o suficiente para justificar multi-tenancy, RBAC, subscrições recorrentes e processamento assíncrono.
 
