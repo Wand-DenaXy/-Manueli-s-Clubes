@@ -1,0 +1,129 @@
+services:
+  # ── API FastAPI ──────────────────────────────────────────────
+  - type: web
+    name: manueli-clubes-api
+    runtime: docker
+    dockerfilePath: ./api/Dockerfile
+    dockerContext: ./api
+    plan: free
+    healthCheckPath: /docs
+    envVars:
+      - key: MYSQL_HOST
+        fromDatabase:
+          name: manueli-clubes-db
+          property: host
+      - key: MYSQL_PORT
+        fromDatabase:
+          name: manueli-clubes-db
+          property: port
+      - key: MYSQL_USER
+        fromDatabase:
+          name: manueli-clubes-db
+          property: user
+      - key: MYSQL_PASSWORD
+        fromDatabase:
+          name: manueli-clubes-db
+          property: password
+      - key: MYSQL_DATABASE
+        fromDatabase:
+          name: manueli-clubes-db
+          property: database
+      - key: REDIS_URL
+        sync: false   # preenches manualmente com o URL do Upstash
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALGORITHM
+        value: HS256
+      - key: STRIPE_SECRET_KEY
+        sync: false   # preenches no dashboard do Render
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      - key: FRONTEND_URL
+        fromService:
+          name: manueli-clubes-frontend
+          type: web
+          property: host
+
+  # ── Celery Worker ─────────────────────────────────────────────
+  - type: worker
+    name: manueli-clubes-worker
+    runtime: docker
+    dockerfilePath: ./api/Dockerfile
+    dockerContext: ./api
+    dockerCommand: celery -A app.celery_app:celery worker --loglevel=info
+    plan: free
+    envVars:
+      - key: MYSQL_HOST
+        fromDatabase:
+          name: manueli-clubes-db
+          property: host
+      - key: MYSQL_PORT
+        fromDatabase:
+          name: manueli-clubes-db
+          property: port
+      - key: MYSQL_USER
+        fromDatabase:
+          name: manueli-clubes-db
+          property: user
+      - key: MYSQL_PASSWORD
+        fromDatabase:
+          name: manueli-clubes-db
+          property: password
+      - key: MYSQL_DATABASE
+        fromDatabase:
+          name: manueli-clubes-db
+          property: database
+      - key: REDIS_URL
+        sync: false
+      - key: SECRET_KEY
+        fromService:
+          name: manueli-clubes-api
+          type: web
+          property: SECRET_KEY
+      - key: ALGORITHM
+        value: HS256
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+
+  # ── Frontend Nuxt 3 ───────────────────────────────────────────
+  - type: web
+    name: manueli-clubes-frontend
+    runtime: docker
+    dockerfilePath: ./nuxt-app/Dockerfile
+    dockerContext: ./nuxt-app
+    plan: free
+    envVars:
+      - key: NUXT_PUBLIC_API_URL
+        fromService:
+          name: manueli-clubes-api
+          type: web
+          property: host
+
+# ── Base de dados PostgreSQL ───────────────────────────────────
+databases:
+  - name: manueli-clubes-db
+    plan: free
+    databaseName: federacao
+    user: manueli
