@@ -2,7 +2,11 @@
 
 # ✦ Manueli's Clubes
 
-**SaaS multi-tenant de gestão de clubes** — FastAPI + Nuxt 3 + Stripe + Celery + PostgreSQL + Redis
+### Plataforma SaaS full-stack de gestão de clubes com pagamentos Stripe, webhooks assíncronos, multi-tenancy e RBAC
+
+*Criar clubes · Gerir membros · Calendário de eventos · Mapa interativo · Planos de subscrição · Notificações por email*
+
+**SaaS multi-tenant de gestão de clubes** — FastAPI · Nuxt 3 · Stripe · Celery ·  PostgreSQL · Redis
 
 <!-- TODO: Substituir por GIF de demonstração do site (landing → login → dashboard → clubes → mapas → calendário → planos) -->
 <img width="1000" height="500" alt="ManueliClube" src="https://github.com/user-attachments/assets/786aee57-cdbc-4be2-823b-51c221d7e4b8" />
@@ -110,18 +114,18 @@ cd api && pytest tests/ -v --tb=short --cov=app --cov-fail-under=75
 ```
 
 ```
-tests/test_auth.py         ✅ 7 passed   (registo, login, JWT, password errada, token forjado, user inexistente, rota protegida)
-tests/test_clubes.py       ✅ 10 passed  (CRUD + inscrição + duplicação 409 + limite de plano 403 + 404)
-tests/test_utilizadores.py ✅ 4 passed   (list, update, delete, 404)
-tests/test_tipouser.py     ✅ 7 passed   (CRUD + 404)
-tests/test_mapas.py        ✅ 9 passed   (CRUD + clube inexistente + 404)
-tests/test_stats.py        ✅ 5 passed   (stats públicas, statstpuser, registrations, auth guard)
-tests/test_webhooks.py     ✅ 15 passed  (webhook secret, payload/sig inválidos, duplicação, fila Celery, checkout free/404/success/Stripe error, task checkout/payment_failed/succeeded/idempotência/metadata/user not found)
-tests/test_endpoints.py    ✅ 14 passed  (/me, /me/plano, /clubesAdmin, /organizations, /notificacoes, /planos CRUD + 404)
-tests/test_email.py        ✅ 5 passed   (SMTP not configured, success, failure, payment_failed_email, payment_succeeded_email)
+tests/test_auth.py         ✅  7 passed  (register, duplicate username, login JWT, wrong password, protected route, tampered JWT, nonexistent user)
+tests/test_clubes.py       ✅  9 passed  (create, list, update, delete, delete 404, ingressar, duplicate 409, clube inexistente 404, plan limit 403)
+tests/test_email.py        ✅  5 passed  (SMTP not configured, send success, send failure, payment_failed_email, payment_succeeded_email)
+tests/test_endpoints.py    ✅ 14 passed  (GET /me, PUT /me/plano + 404, GET /clubesAdmin, POST+GET /organizations, GET /notificacoes empty+data, GET+POST+PUT+DELETE /planos + 404s)
+tests/test_mapas.py        ✅  7 passed  (create, create clube inexistente, list, update, update 404, delete, delete 404)
+tests/test_stats.py        ✅  5 passed  (stats public, statstpuser, registrations, statstpuser no auth, registrations no auth)
+tests/test_tipouser.py     ✅  6 passed  (create, list, update, update 404, delete, delete 404)
+tests/test_utilizadores.py ✅  4 passed  (list, update, delete, delete 404)
+tests/test_webhooks.py     ✅ 15 passed  (webhook: no secret, invalid payload, invalid signature, duplicate event, queues event │ checkout: free plan 400, not found 404, success, Stripe error 502 │ task: checkout completed, payment failed, payment succeeded, duplicate skipped, missing metadata, user not found)
 ```
 
-Edge cases cobertos: token JWT forjado → 401, utilizador inexistente → 401, limite do plano atingido → 403, inscrição duplicada → 409, webhook secret vazio → 500, assinatura Stripe inválida → 400, evento duplicado → idempotência, Stripe API error → 502.
+Edge cases cobertos: token JWT forjado → 401, utilizador inexistente → 401, username duplicado → 400, limite do plano atingido → 403, inscrição duplicada → 409, webhook secret vazio → 500, payload/assinatura Stripe inválida → 400, evento duplicado → idempotência, plano gratuito → 400, Stripe API error → 502, SMTP não configurado → no-op, metadata incompleta → skipped, user não encontrado → skipped.
 
 ---
 
@@ -708,9 +712,11 @@ sequenceDiagram
 
 ### Estratégia
 
-- **SQLite in-memory** para BD de testes (sem PostgreSQL)
-- **Redis service container** no CI
+- **SQLite** para BD de testes (sem PostgreSQL)
+- **Redis mockado** no conftest (`_redis = MagicMock()`) — testes passam sem Redis local
+- **Redis service container** no CI (GitHub Actions)
 - **Dependency override** do `get_db` para injetar sessão de teste
+- **Celery tasks** testadas diretamente (sem broker) com `SessionLocal` mockado
 - Startup event desativado em testes (`on_startup.clear()`)
 - Coverage gate: build falha se < 75%
 
@@ -720,10 +726,22 @@ sequenceDiagram
 |---------|-------------|----------|
 | Token JWT forjado/adulterado | 401 | `test_auth.py` |
 | Login com utilizador inexistente | 401 | `test_auth.py` |
+| Acesso a rota protegida sem token | 401 | `test_auth.py` |
+| Username duplicado no registo | 400 | `test_auth.py` |
 | Limite de clubes do plano atingido | 403 | `test_clubes.py` |
 | Inscrição duplicada em clube (UniqueConstraint) | 409 | `test_clubes.py` |
-| CRUD em recurso inexistente (clube, mapa, tipo, user) | 404 | `test_*.py` |
-| Acesso a rota protegida sem token | 401 | `test_auth.py` |
+| CRUD em recurso inexistente (clube, mapa, tipo, user, plano) | 404 | `test_*.py` |
+| Webhook secret vazio (não configurado) | 500 | `test_webhooks.py` |
+| Payload Stripe inválido | 400 | `test_webhooks.py` |
+| Assinatura Stripe inválida (HMAC) | 400 | `test_webhooks.py` |
+| Evento webhook duplicado (idempotência) | 200 duplicate | `test_webhooks.py` |
+| Checkout em plano gratuito (preço = 0) | 400 | `test_webhooks.py` |
+| Stripe API error durante checkout | 502 | `test_webhooks.py` |
+| Task: evento duplicado no Celery worker | skipped | `test_webhooks.py` |
+| Task: metadata incompleta no checkout | skipped | `test_webhooks.py` |
+| Task: user não encontrado no payment_failed | skipped | `test_webhooks.py` |
+| SMTP não configurado | False (no-op) | `test_email.py` |
+| Falha de envio SMTP | False | `test_email.py` |
 
 </details>
 
