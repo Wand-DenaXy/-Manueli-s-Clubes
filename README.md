@@ -1,14 +1,9 @@
 <div align="center">
 
-# ✦ Manueli's Clubes
+# Manueli's Clubes
 
-### Plataforma SaaS full-stack de gestão de clubes com pagamentos Stripe, webhooks assíncronos, multi-tenancy e RBAC
+**SaaS full-stack de gestão de clubes com pagamentos Stripe reais, webhooks assíncronos, multi-tenancy e RBAC.**
 
-*Criar clubes · Gerir membros · Calendário de eventos · Mapa interativo · Planos de subscrição · Notificações por email*
-
-**SaaS multi-tenant de gestão de clubes** — FastAPI · Nuxt 3 · Stripe · Celery ·  PostgreSQL · Redis
-
-<!-- TODO: Substituir por GIF de demonstração do site (landing → login → dashboard → clubes → mapas → calendário → planos) -->
 <img width="1000" height="500" alt="ManueliClube" src="https://github.com/user-attachments/assets/786aee57-cdbc-4be2-823b-51c221d7e4b8" />
 
 <p>
@@ -21,20 +16,43 @@
   <img alt="Docker" src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white" />
 </p>
 
+**34** endpoints · **72** testes · **93%** coverage · **9** modelos ORM · **5** Docker containers · **3** roles RBAC
+
 </div>
 
 ---
 
-## O que é
+## Key Features
 
-Plataforma SaaS para federações e organizações desportivas gerirem clubes, membros, eventos e pagamentos — com multi-tenancy, RBAC (3 roles), subscrições Stripe recorrentes e processamento assíncrono de webhooks.
+- **Stripe Checkout** — subscrições recorrentes (Free €0 · Pro €9.99 · Enterprise €29.99) com limites enforced server-side
+- **Webhooks assíncronos** — Celery + Redis, retry com backoff exponencial (max 5), idempotência por `event_id`
+- **Emails transacionais** — pagamento OK → confirmação; falha → aviso + rollback automático para Free
+- **Multi-tenancy** — isolamento por organização via `WHERE organization_id = user.org_id`
+- **RBAC** — 3 roles (Admin · Gestor · Cliente), `require_roles()` como FastAPI Dependency
+- **Redis** — cache com TTL + invalidação por prefixo + broker Celery, instância única
 
-| | |
-|---|---|
-| **34 endpoints** REST (auth, CRUD, stats, pagamentos, webhooks) | **72 testes** com coverage gate ≥ 75% — [ver CI](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions) |
-| **9 tabelas** ORM + 16 Pydantic schemas | **Stripe Checkout** + webhooks Celery (retry + idempotência) + **emails automáticos** |
-| **RBAC** — Admin · Gestor · Cliente | **Redis** cache (TTL + invalidação) + broker Celery |
-| **Multi-tenancy** por organização | **Docker Compose** — 5 containers |
+---
+
+## Architecture Highlights
+
+```mermaid
+graph LR
+    Browser -->|:3000| Nuxt[Nuxt 3 SSR]
+    Nuxt -->|JWT| API[FastAPI :8000]
+    API --> DB[(PostgreSQL)]
+    API --> Redis[(Redis)]
+    Stripe -->|Webhooks| API
+    API -->|.delay| Worker[Celery Worker]
+    Worker --> DB
+    Worker --> Redis
+    Worker -->|SMTP TLS| Email[Gmail]
+```
+
+**Decisões que importam:**
+- Webhook response < 200ms — processamento real no Celery worker, não no request handler
+- `stripe_events.event_id` com `UNIQUE` constraint — idempotência a nível de BD, não apenas aplicacional
+- Cache invalidation por prefixo (`SCAN` + `DEL`) — evita stale data em writes sem flush global
+- Argon2id em vez de bcrypt — vencedor da Password Hashing Competition, resistente a GPU/ASIC
 
 ---
 
@@ -44,7 +62,7 @@ Plataforma SaaS para federações e organizações desportivas gerirem clubes, m
 |---------|----------|-------|
 | Python 3.11 · FastAPI · SQLAlchemy | Nuxt 3 · Vue 3 · Bootstrap 5 | PostgreSQL 15 · Redis 7 |
 | Celery 5.4 · Stripe 8.4 | Chart.js · Leaflet · FullCalendar | Docker Compose · GitHub Actions |
-| JWT (HS256) · Argon2id · SMTP | SweetAlert2 | ruff (lint) · pytest-cov |
+| JWT (HS256) · Argon2id · SMTP | SweetAlert2 | ruff · pytest-cov |
 
 ---
 
@@ -61,88 +79,60 @@ Cada push/PR dispara **3 jobs obrigatórios** — todos têm de passar para o Do
 | **Docker Build** | Imagem não compilar |
 
 ```
-72 tests passed · coverage 93% (gate ≥ 75%) · lint clean · Docker OK
+72 tests passed · coverage 93% · lint clean · Docker OK
 ```
 
 > 📂 [ci.yml](.github/workflows/ci.yml) · 🔗 [GitHub Actions](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions)
 
----
+**Edge cases testados:** JWT forjado → 401 · limite plano → 403 · inscrição duplicada → 409 · webhook inválido → 400 · evento duplicado → idempotência · Stripe API error → 502 · SMTP off → no-op
 
-## Emails Transacionais
+<details>
+<summary>Breakdown por ficheiro</summary>
 
-A cada evento de pagamento processado via webhook Stripe, o sistema envia **automaticamente** um email HTML ao utilizador:
+```
+test_auth.py          7    register, JWT, wrong password, tampered token
+test_clubes.py        9    CRUD, ingressar, duplicate 409, plan limit 403
+test_email.py         5    SMTP config, send ok/fail, payment emails
+test_endpoints.py    14    /me, /clubesAdmin, /organizations, /notificacoes, /planos
+test_mapas.py         7    CRUD + 404s
+test_stats.py         5    stats, statstpuser, registrations + no auth
+test_tipouser.py      6    CRUD + 404s
+test_utilizadores.py  4    CRUD + 404
+test_webhooks.py     15    webhook validation, checkout flow, Celery tasks
+```
 
-| Evento Stripe | Email enviado | Conteúdo |
-|---------------|---------------|----------|
-| `invoice.payment_succeeded` | **Pagamento bem-sucedido** | Confirma que o pagamento foi processado com sucesso. |
-| `invoice.payment_failed` | **Pagamento falhou** | Informa que o pagamento não foi processado, o plano foi revertido para **Free**, e inclui link para atualizar o plano em `/planos`. |
-
-Os emails são enviados pelo **Celery worker** (processamento assíncrono) via SMTP TLS (Gmail). Se o SMTP não estiver configurado, o envio é ignorado sem bloquear o fluxo — coberto por testes (`test_email.py`).
-
----
-
-## Screenshots
-
-### Dashboard — KPIs + Chart.js
-
-<img width="1000" height="500" alt="Dashboard" src="nuxt-app/assets/images/DashboardManuel.PNG" />
-
-> Cards de métricas em tempo real, gráfico de registos mensais (line) e distribuição por role (doughnut). Dados da API com cache Redis.
-
-### Mapa Interativo — Leaflet.js
-
-<img width="1000" height="500" alt="Mapas" src="nuxt-app/assets/images/ManuelMapas.PNG" />
-
-> Dark-themed map com marcadores GPS dos clubes, painel lateral e formulário de coordenadas.
-
-### Login — JWT + Argon2
-
-<img width="1000" height="500" alt="Login" src="nuxt-app/assets/images/ManuelLogin.PNG" />
-
-> Autenticação com 3 roles (Admin/Gestor/Cliente). Passwords hashed com Argon2id. Token JWT 30 min.
+</details>
 
 ---
 
 ## Quick Start
 
 ```bash
-git clone https://github.com/Wand-DenaXy/-Manueli-s-Clubes.git
-cd -Manueli-s-Clubes
-docker compose up --build        # 5 containers: DB + Redis + API + Worker + Frontend
+git clone https://github.com/Wand-DenaXy/-Manueli-s-Clubes.git && cd -Manueli-s-Clubes
+docker compose up --build
+# http://localhost:3000 (frontend)   http://localhost:8000/docs (API)
 ```
-
-| Serviço | URL |
-|---------|-----|
-| Frontend | http://localhost:3000 |
-| API Swagger | http://localhost:8000/docs |
-| PostgreSQL | localhost:5432 |
-| Redis | localhost:6379 |
 
 ---
 
-## Testes
+## Screenshots
 
-```bash
-cd api && pytest tests/ -v --tb=short --cov=app --cov-fail-under=75
-```
+<img width="1000" height="500" alt="Dashboard" src="nuxt-app/assets/images/DashboardManuel.PNG" />
 
-```
-tests/test_auth.py         ✅  7 passed  (register, duplicate username, login JWT, wrong password, protected route, tampered JWT, nonexistent user)
-tests/test_clubes.py       ✅  9 passed  (create, list, update, delete, delete 404, ingressar, duplicate 409, clube inexistente 404, plan limit 403)
-tests/test_email.py        ✅  5 passed  (SMTP not configured, send success, send failure, payment_failed_email, payment_succeeded_email)
-tests/test_endpoints.py    ✅ 14 passed  (GET /me, PUT /me/plano + 404, GET /clubesAdmin, POST+GET /organizations, GET /notificacoes empty+data, GET+POST+PUT+DELETE /planos + 404s)
-tests/test_mapas.py        ✅  7 passed  (create, create clube inexistente, list, update, update 404, delete, delete 404)
-tests/test_stats.py        ✅  5 passed  (stats public, statstpuser, registrations, statstpuser no auth, registrations no auth)
-tests/test_tipouser.py     ✅  6 passed  (create, list, update, update 404, delete, delete 404)
-tests/test_utilizadores.py ✅  4 passed  (list, update, delete, delete 404)
-tests/test_webhooks.py     ✅ 15 passed  (webhook: no secret, invalid payload, invalid signature, duplicate event, queues event │ checkout: free plan 400, not found 404, success, Stripe error 502 │ task: checkout completed, payment failed, payment succeeded, duplicate skipped, missing metadata, user not found)
-```
+> **Dashboard** — KPIs + Chart.js (line + doughnut). Cache Redis.
 
-Edge cases cobertos: token JWT forjado → 401, utilizador inexistente → 401, username duplicado → 400, limite do plano atingido → 403, inscrição duplicada → 409, webhook secret vazio → 500, payload/assinatura Stripe inválida → 400, evento duplicado → idempotência, plano gratuito → 400, Stripe API error → 502, SMTP não configurado → no-op, metadata incompleta → skipped, user não encontrado → skipped.
+<img width="1000" height="500" alt="Mapas" src="nuxt-app/assets/images/ManuelMapas.PNG" />
+
+> **Mapa** — Leaflet.js, marcadores GPS, painel lateral.
+
+<img width="1000" height="500" alt="Login" src="nuxt-app/assets/images/ManuelLogin.PNG" />
+
+> **Login** — 3 roles · Argon2id · JWT 30 min.
 
 ---
 
-## Estrutura do Projeto
+<details>
+<summary><strong>Estrutura do Projeto</strong></summary>
 
 ```
 -Manueli-s-Clubes/
@@ -193,6 +183,8 @@ Edge cases cobertos: token JWT forjado → 401, utilizador inexistente → 401, 
         ├── Header.vue               # Header global
         └── Navbar.vue               # Nav sidebar
 ```
+
+</details>
 
 ---
 
