@@ -17,12 +17,12 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 # Patch init_db BEFORE importing main so the startup event is a no-op
-import database
+import app.database as database
 database.init_db = lambda: None
 
-import auth
+import app.auth as auth
 from main import app
-from models import TipoUserModel, PlanoModel, OrganizationModel
+from app.models import TipoUserModel, PlanoModel, OrganizationModel
 
 import main as _main_module
 _main_module.init_db = lambda: None
@@ -36,7 +36,7 @@ TestSession = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 @pytest.fixture(autouse=True)
 def setup_db():
     """Create all tables before each test and drop them after."""
-    from database import Base
+    from app.database import Base
     Base.metadata.create_all(bind=engine)
     yield
     Base.metadata.drop_all(bind=engine)
