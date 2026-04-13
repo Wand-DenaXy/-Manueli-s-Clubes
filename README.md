@@ -30,7 +30,7 @@ O objetivo: provar que consigo levar uma ideia de zero a produção com a mesma 
 
 ---
 
-## O Projeto em Números
+## ✦ O Projeto em Números
 
 **Scale** — 34 endpoints · 9 modelos ORM · 16 schemas Pydantic · 72 testes · 93% coverage · 5 containers Docker
 
@@ -40,7 +40,7 @@ O objetivo: provar que consigo levar uma ideia de zero a produção com a mesma 
 
 ---
 
-## Planos de Subscrição
+## ✦ Planos de Subscrição
 
 Subscrições recorrentes via **Stripe Checkout** (mode=subscription). Limites enforced server-side.
 
@@ -58,7 +58,7 @@ Webhooks processados via **Celery** com retry (backoff exponencial, max 5), idem
 
 ---
 
-## Stack
+## ✦ Stack
 
 | Backend | Frontend | Infra |
 |---------|----------|-------|
@@ -68,7 +68,7 @@ Webhooks processados via **Celery** com retry (backoff exponencial, max 5), idem
 
 ---
 
-## CI/CD
+## ✦ CI/CD
 
 [![CI](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions/workflows/ci.yml/badge.svg)](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions)
 
@@ -87,7 +87,7 @@ Edge cases cobertos nos testes: JWT forjado → 401 · username duplicado → 40
 
 ---
 
-## Screenshots
+## ✦ Screenshots
 
 <img width="1000" height="500" alt="Dashboard" src="nuxt-app/assets/images/DashboardManuel.PNG" />
 
@@ -103,7 +103,7 @@ Edge cases cobertos nos testes: JWT forjado → 401 · username duplicado → 40
 
 ---
 
-## Quick Start
+## ✦ Quick Start
 
 ```bash
 git clone https://github.com/Wand-DenaXy/-Manueli-s-Clubes.git
