@@ -32,7 +32,7 @@ Plataforma SaaS para federações e organizações desportivas gerirem clubes, m
 | | |
 |---|---|
 | **34 endpoints** REST (auth, CRUD, stats, pagamentos, webhooks) | **72 testes** com coverage gate ≥ 75% — [ver CI](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions) |
-| **9 tabelas** ORM + 16 Pydantic schemas | **Stripe Checkout** + webhooks Celery (retry + idempotência) |
+| **9 tabelas** ORM + 16 Pydantic schemas | **Stripe Checkout** + webhooks Celery (retry + idempotência) + **emails automáticos** |
 | **RBAC** — Admin · Gestor · Cliente | **Redis** cache (TTL + invalidação) + broker Celery |
 | **Multi-tenancy** por organização | **Docker Compose** — 5 containers |
 
@@ -61,10 +61,23 @@ Cada push/PR dispara **3 jobs obrigatórios** — todos têm de passar para o Do
 | **Docker Build** | Imagem não compilar |
 
 ```
-72 tests passed · coverage ≥ 75% · lint clean · Docker OK
+72 tests passed · coverage 93% (gate ≥ 75%) · lint clean · Docker OK
 ```
 
 > 📂 [ci.yml](.github/workflows/ci.yml) · 🔗 [GitHub Actions](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions)
+
+---
+
+## Emails Transacionais
+
+A cada evento de pagamento processado via webhook Stripe, o sistema envia **automaticamente** um email HTML ao utilizador:
+
+| Evento Stripe | Email enviado | Conteúdo |
+|---------------|---------------|----------|
+| `invoice.payment_succeeded` | **Pagamento bem-sucedido** | Confirma que o pagamento foi processado com sucesso. |
+| `invoice.payment_failed` | **Pagamento falhou** | Informa que o pagamento não foi processado, o plano foi revertido para **Free**, e inclui link para atualizar o plano em `/planos`. |
+
+Os emails são enviados pelo **Celery worker** (processamento assíncrono) via SMTP TLS (Gmail). Se o SMTP não estiver configurado, o envio é ignorado sem bloquear o fluxo — coberto por testes (`test_email.py`).
 
 ---
 
