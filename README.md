@@ -66,23 +66,15 @@ graph LR
 
 ---
 
-## CI/CD
+## Qualidade
 
 [![CI](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions/workflows/ci.yml/badge.svg)](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions)
-
-Cada push/PR dispara **3 jobs obrigatórios** — todos têm de passar para o Docker build correr:
-
-| Job | Falha se… |
-|-----|-----------|
-| **Testes + Coverage** | Qualquer teste falhar **ou** coverage < 75% |
-| **Lint (ruff)** | Qualquer violação de código |
-| **Docker Build** | Imagem não compilar |
 
 ```
 72 tests passed · coverage 93% · lint clean · Docker OK
 ```
 
-> 📂 [ci.yml](.github/workflows/ci.yml) · 🔗 [GitHub Actions](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions)
+**Edge cases testados:** JWT forjado → 401 · limite plano → 403 · inscrição duplicada → 409 · webhook inválido → 400 · evento duplicado → idempotência · Stripe API error → 502 · SMTP off → no-op
 
 **Edge cases testados:** JWT forjado → 401 · limite plano → 403 · inscrição duplicada → 409 · webhook inválido → 400 · evento duplicado → idempotência · Stripe API error → 502 · SMTP off → no-op
 
