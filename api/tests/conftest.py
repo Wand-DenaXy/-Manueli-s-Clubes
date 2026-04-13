@@ -24,8 +24,10 @@ import app.auth as auth
 from main import app
 from app.models import TipoUserModel, PlanoModel, OrganizationModel
 
-import main as _main_module
-_main_module.init_db = lambda: None
+# Disable the startup event handler so TestClient does not try to
+# connect to the production PostgreSQL database.
+app.router.on_startup.clear()
+app.router.on_shutdown.clear()
 
 # ── in-memory SQLite engine for tests ────────────────────────────
 SQLALCHEMY_TEST_URL = "sqlite:///./test.db"
