@@ -6,7 +6,7 @@
 
 *Criar clubes · Gerir membros · Calendário de eventos · Mapa interativo · Planos de subscrição · Notificações por email*
 
-Caso seja Tech Lead -> 🔗 [Documentação Técnica Completa](.README_TECH.md)
+Caso seja Tech Lead -> 🔗 [Documentação Técnica Completa](README_TECH.md)
 
 <p>
   <code>SaaS full-stack com pagamentos reais (Stripe)</code> · <code>Multi-tenancy + RBAC + async webhooks (Celery)</code><br>
