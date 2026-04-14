@@ -68,7 +68,13 @@ Webhooks processados via **Celery** com retry (backoff exponencial, max 5), idem
 
 ---
 
+## ✦ Testes & CI
+
 [![CI](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions/workflows/ci.yml/badge.svg)](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions)
+
+```
+72 tests · 93% coverage · lint clean · Docker build OK
+```
 
 Cada push/PR dispara **3 jobs obrigatórios** — todos têm de passar para o Docker build correr:
 
@@ -78,9 +84,7 @@ Cada push/PR dispara **3 jobs obrigatórios** — todos têm de passar para o Do
 | **Lint (ruff)** | Qualquer violação de código |
 | **Docker Build** | Imagem não compilar |
 
-```
-72 tests passed · coverage 93% (gate ≥ 75%) · lint clean · Docker OK
-```
+Edge cases: JWT forjado → 401 · username duplicado → 400 · limite plano → 403 · inscrição duplicada → 409 · webhook inválido → 400 · evento duplicado → idempotência · Stripe API error → 502 · SMTP off → no-op.
 
 > 📂 [ci.yml](.github/workflows/ci.yml) · 🔗 [GitHub Actions](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions)
 
@@ -111,18 +115,6 @@ docker compose up --build          # 5 containers prontos
 ```
 
 ---
-
-## ✦ Testes & CI
-
-[![CI](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions/workflows/ci.yml/badge.svg)](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions)
-
-```
-72 tests · 93% coverage · lint clean · Docker build OK
-```
-
-Cada push dispara **3 jobs obrigatórios** — testes + coverage (≥ 75%), lint (ruff), Docker build.
-
-Edge cases: JWT forjado → 401 · username duplicado → 400 · limite plano → 403 · inscrição duplicada → 409 · webhook inválido → 400 · evento duplicado → idempotência · Stripe API error → 502 · SMTP off → no-op.
 
 ## ✦ Estrutura do Projeto
 
