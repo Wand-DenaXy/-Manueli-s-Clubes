@@ -6,13 +6,6 @@
 
 *Criar clubes · Gerir membros · Calendário de eventos · Mapa interativo · Planos de subscrição · Notificações por email*
 
-Caso seja Tech Lead -> 🔗 [Documentação Técnica Completa](.README_TECH.md)
-
-<p>
-  <code>SaaS full-stack com pagamentos reais (Stripe)</code> · <code>Multi-tenancy + RBAC + async webhooks (Celery)</code><br>
-  <code>93% test coverage + CI/CD com quality gates</code> · <code>Docker ready (5 serviços)</code>
-</p>
-
 <img width="1000" height="500" alt="ManueliClube" src="https://github.com/user-attachments/assets/786aee57-cdbc-4be2-823b-51c221d7e4b8" />
 
 <p>
@@ -31,9 +24,7 @@ Caso seja Tech Lead -> 🔗 [Documentação Técnica Completa](.README_TECH.md)
 
 ## ✦ Porquê este projeto?
 
-Não é mais um CRUD académico — é um **produto real** com pagamentos, multi-tenancy e RBAC.
-Clubes desportivos têm membros, eventos, mapas e subscrições — complexidade suficiente para justificar a stack.
-Objetivo: levar uma ideia de **zero a produção** com as mesmas práticas de uma empresa.
+Este projeto existe para responder a uma pergunta simples: consigo levar uma ideia de zero a produção sozinho? Pagamentos reais, webhooks assíncronos, multi-tenancy, RBAC, CI/CD com quality gates. A resposta está aqui.
 
 ---
 
@@ -46,112 +37,6 @@ Objetivo: levar uma ideia de **zero a produção** com as mesmas práticas de um
 | **RBAC** — Admin · Gestor · Cliente | **Redis** cache TTL + invalidação + broker Celery |
 | **Multi-tenancy** por organização | **Docker Compose** — 5 containers production-ready |
 | **Emails automáticos** a cada pagamento | **CI/CD** — testes + lint + Docker build a cada push |
-
-<details>
-<summary><strong>Endpoints da API</strong></summary>
-
-### Auth (`/auth`)
-
-| Método | Rota           | Body / Params                              | Response          | Auth |
-|--------|----------------|--------------------------------------------|-------------------|------|
-| POST   | `/auth/`       | `{username, password, tipo_id}`            | `201` message     | —    |
-| POST   | `/auth/token`  | FormData: `username, password, tipo_id`    | `{access_token, token_type}` | — |
-
-### Perfil (`/me`)
-
-| Método | Rota              | Body / Params | Response            | Auth | Status Codes |
-|--------|--------------------|---------------|---------------------|------|--------------|
-| GET    | `/me`              | —             | `UtilizadorResponse`| JWT  | 200          |
-| PUT    | `/me/plano/{id}`   | —             | `UtilizadorResponse`| JWT  | 200, 404     |
-
-### Clubes (`/clubes`)
-
-| Método | Rota                     | Body / Params       | Response            | Auth         | Status Codes     | Cache                              |
-|--------|--------------------------|---------------------|---------------------|--------------|------------------|-------------------------------------|
-| POST   | `/clubes`                | `ClubeCreate`       | `ClubeResponse`     | Admin/Gestor | 201, 403, 409    | invalidate `stats`, `clubes:`       |
-| GET    | `/clubes`                | —                   | `[ClubeResponse]`   | JWT          | 200              | `clubes:org:{id}:list` TTL 30 s     |
-| GET    | `/clubesAdmin`           | —                   | `[ClubeResponse]`   | Admin        | 200              | `clubes:admin:list` TTL 30 s        |
-| PUT    | `/clubes/{id}`           | `ClubeCreate`       | `ClubeResponse`     | Admin/Gestor | 200, 404         | invalidate `stats`, `clubes:`       |
-| DELETE | `/clubes/{id}`           | —                   | —                   | Admin        | 204, 404         | invalidate `stats`, `clubes:`       |
-| POST   | `/clubes/{id}/ingressar` | —                   | `IngressarResponse` | JWT          | 201, 404, 409    | —                                   |
-
-### Utilizadores (`/utilizadores`)
-
-| Método | Rota                  | Body / Params       | Response               | Auth  | Status Codes | Cache                                        |
-|--------|-----------------------|---------------------|------------------------|-------|--------------|----------------------------------------------|
-| GET    | `/utilizadores`       | —                   | `[UtilizadorResponse]` | Admin | 200          | `utilizadores:list` TTL 30 s                 |
-| PUT    | `/utilizadores/{id}`  | `UtilizadorCreate`  | `UtilizadorResponse`   | Admin | 200, 404     | invalidate `stats`, `statstpuser`            |
-| DELETE | `/utilizadores/{id}`  | —                   | —                      | Admin | 204, 404     | invalidate `stats`, `statstpuser`, `registrations:` |
-
-### Tipos de Utilizador (`/tipouser`)
-
-| Método | Rota              | Body / Params    | Response             | Auth | Status Codes | Cache                                         |
-|--------|--------------------|------------------|----------------------|------|--------------|-----------------------------------------------|
-| POST   | `/tipouser`        | `TipoUserCreate` | `TipoUserResponse`  | JWT  | 200          | invalidate `stats`, `statstpuser`, `tipouser:` |
-| GET    | `/tipouser`        | —                | `[TipoUserResponse]` | —    | 200          | `tipouser:list` TTL 120 s                     |
-| PUT    | `/tipouser/{id}`   | `TipoUserCreate` | `TipoUserResponse`  | JWT  | 200, 404     | invalidate `stats`, `statstpuser`, `tipouser:` |
-| DELETE | `/tipouser/{id}`   | —                | —                    | JWT  | 204, 404     | invalidate `stats`, `statstpuser`, `tipouser:` |
-
-### Mapas (`/mapas`)
-
-| Método | Rota           | Body / Params | Response          | Auth         | Status Codes | Cache                          |
-|--------|----------------|---------------|-------------------|--------------|--------------|--------------------------------|
-| POST   | `/mapas`       | `MapaCreate`  | `MapaResponse`    | Admin/Gestor | 200, 404     | invalidate `stats`, `mapas:`   |
-| GET    | `/mapas`       | —             | `[MapaResponse]`  | JWT          | 200          | `mapas:list` TTL 60 s          |
-| PUT    | `/mapas/{id}`  | `MapaCreate`  | `MapaResponse`    | Admin/Gestor | 200, 404     | invalidate `stats`, `mapas:`   |
-| DELETE | `/mapas/{id}`  | —             | message           | Admin/Gestor | 200, 404     | invalidate `stats`, `mapas:`   |
-
-### Planos (`/planos`)
-
-| Método | Rota           | Body / Params | Response           | Auth | Status Codes | Cache                  |
-|--------|----------------|---------------|--------------------|------|--------------|------------------------|
-| GET    | `/planos`      | —             | `[PlanoResponse]`  | —    | 200          | `planos:list` TTL 120 s|
-| POST   | `/planos`      | `PlanoCreate` | `PlanoResponse`    | JWT  | 201          | invalidate `planos:`   |
-| PUT    | `/planos/{id}` | `PlanoCreate` | `PlanoResponse`    | JWT  | 200, 404     | invalidate `planos:`   |
-| DELETE | `/planos/{id}` | —             | —                  | JWT  | 204, 404     | invalidate `planos:`   |
-
-### Organizations (`/organizations`)
-
-| Método | Rota              | Body / Params | Response  | Auth  | Status Codes |
-|--------|--------------------|---------------|-----------|-------|--------------|
-| POST   | `/organizations`   | `nome`        | Org data  | Admin | 201          |
-| GET    | `/organizations`   | —             | `[Org]`   | Admin | 200          |
-
-### Pagamentos e Webhooks (Stripe)
-
-| Método | Rota                       | Body / Params    | Response     | Auth | Status Codes       |
-|--------|----------------------------|------------------|--------------|------|--------------------|
-| POST   | `/create-checkout-session` | `{plano_id}`     | `{url}`      | JWT  | 200, 400, 404, 502 |
-| POST   | `/stripe/webhook`          | Stripe payload   | `{status}`   | —    | 200, 400           |
-
-### Notificações (`/notificacoes`)
-
-| Método | Rota            | Body / Params | Response                | Auth | Status Codes |
-|--------|-----------------|---------------|-------------------------|------|--------------|
-| GET    | `/notificacoes` | —             | `[NotificacaoResponse]` | JWT  | 200          |
-
-### Estatísticas
-
-| Método | Rota             | Response                                        | Auth | Cache                          |
-|--------|-------------------|-------------------------------------------------|------|--------------------------------|
-| GET    | `/stats`          | `{clubes, utilizadores, tipousers, mapas}`      | —    | `stats` TTL 60 s               |
-| GET    | `/statstpuser`    | `{tipo_descricao: count, ...}`                  | JWT  | `statstpuser` TTL 60 s         |
-| GET    | `/registrations`  | `[{month: str, count: int}]` (12 meses)        | JWT  | `registrations:{year}` TTL 300 s |
-
-### Cache — Redis com TTL e Invalidação por Prefixo
-
-Redis serve como cache (`SETEX` + `SCAN`/`DEL` por prefixo) e Celery broker numa única instância.
-
-| Recurso          | Cache Key              | TTL    | Invalidado por       |
-|------------------|------------------------|--------|----------------------|
-| `/stats`         | `stats`                | 60 s   | CRUD clubes/users    |
-| `/clubes`        | `clubes:org:{id}:list` | 30 s   | CRUD clubes          |
-| `/tipouser`      | `tipouser:list`        | 120 s  | CRUD tipouser        |
-| `/mapas`         | `mapas:list`           | 60 s   | CRUD mapas           |
-| `/planos`        | `planos:list`          | 120 s  | CRUD planos          |
-| `/utilizadores`  | `utilizadores:list`    | 30 s   | PUT /me/plano, DEL   |
-
-</details>
 
 ---
 
@@ -283,18 +168,36 @@ docker compose up --build          # 5 containers prontos
         └── Navbar.vue               # Nav sidebar
 ```
 
+
 ---
+<details>
+<summary>Breakdown por ficheiro</summary>
+
+```
+test_auth.py          7 passed   register, JWT, wrong password, tampered token, ...
+test_clubes.py        9 passed   CRUD, ingressar, duplicate 409, plan limit 403
+test_email.py         5 passed   SMTP config, send ok/fail, payment emails
+test_endpoints.py    14 passed   /me, /clubesAdmin, /organizations, /notificacoes, /planos CRUD
+test_mapas.py         7 passed   CRUD + 404s
+test_stats.py         5 passed   stats, statstpuser, registrations + no auth
+test_tipouser.py      6 passed   CRUD + 404s
+test_utilizadores.py  4 passed   CRUD + 404
+test_webhooks.py     15 passed   webhook validation, checkout flow, Celery task processing
+```
+
+</details>
+
+
+
 
 <!-- ═══════════════════════════════════════════════════════════ -->
-<!-- DEEP DIVE — Documentação técnica em detalhes colapsáveis   -->
+<!-- DEEP DIVE — Secções técnicas em detalhes colapsáveis       -->
 <!-- ═══════════════════════════════════════════════════════════ -->
 
 <details>
-<summary><strong>✦ Documentação Técnica</strong></summary>
+<summary><strong>Arquitetura — Diagramas C4</strong></summary>
 
-### Arquitetura — Diagramas C4
-
-#### Nível 1 — Contexto do Sistema
+### Nível 1 — Contexto do Sistema
 
 ```mermaid
 C4Context
@@ -313,7 +216,7 @@ C4Context
     Rel(stripe, sys, "Webhooks HTTP POST")
 ```
 
-#### Nível 2 — Containers
+### Nível 2 — Containers
 
 ```mermaid
 C4Container
@@ -355,7 +258,7 @@ C4Container
     Rel(cache_mod, redis, "GET / SETEX / SCAN+DEL")
 ```
 
-#### Nível 3 — Componentes (API)
+### Nível 3 — Componentes (API)
 
 ```mermaid
 C4Component
@@ -392,9 +295,10 @@ C4Component
     Rel(celery_app, redis, "broker + backend")
 ```
 
----
+</details>
 
-### Modelo de Dados (ER)
+<details>
+<summary><strong>Modelo de Dados (ER)</strong></summary>
 
 ```mermaid
 erDiagram
@@ -484,11 +388,121 @@ erDiagram
 
 > **Constraints:** `UniqueConstraint("utilizador_id", "clube_id")` em `membro_clube` — impede inscrição duplicada a nível de BD. `unique=True` em `utilizador.username`, `clubes.email` e `stripe_events.event_id` (idempotência de webhooks).
 
----
+</details>
 
-### Sequence Diagrams
+<details>
+<summary><strong>Cache — Redis com TTL e Invalidação por Prefixo</strong></summary>
 
-#### Autenticação (Login + Acesso Protegido)
+Redis serve como cache (`SETEX` + `SCAN`/`DEL` por prefixo) e Celery broker numa única instância.
+
+| Recurso          | Cache Key              | TTL    | Invalidado por       |
+|------------------|------------------------|--------|----------------------|
+| `/stats`         | `stats`                | 60 s   | CRUD clubes/users    |
+| `/clubes`        | `clubes:org:{id}:list` | 30 s   | CRUD clubes          |
+| `/tipouser`      | `tipouser:list`        | 120 s  | CRUD tipouser        |
+| `/mapas`         | `mapas:list`           | 60 s   | CRUD mapas           |
+| `/planos`        | `planos:list`          | 120 s  | CRUD planos          |
+| `/utilizadores`  | `utilizadores:list`    | 30 s   | PUT /me/plano, DEL   |
+
+</details>
+
+<details>
+<summary><strong>Endpoints da API</strong></summary>
+
+### Auth (`/auth`)
+
+| Método | Rota           | Body / Params                              | Response          | Auth |
+|--------|----------------|--------------------------------------------|-------------------|------|
+| POST   | `/auth/`       | `{username, password, tipo_id}`            | `201` message     | —    |
+| POST   | `/auth/token`  | FormData: `username, password, tipo_id`    | `{access_token, token_type}` | — |
+
+### Perfil (`/me`)
+
+| Método | Rota              | Body / Params | Response            | Auth | Status Codes |
+|--------|--------------------|---------------|---------------------|------|--------------|
+| GET    | `/me`              | —             | `UtilizadorResponse`| JWT  | 200          |
+| PUT    | `/me/plano/{id}`   | —             | `UtilizadorResponse`| JWT  | 200, 404     |
+
+### Clubes (`/clubes`)
+
+| Método | Rota                     | Body / Params       | Response            | Auth         | Status Codes     | Cache                              |
+|--------|--------------------------|---------------------|---------------------|--------------|------------------|-------------------------------------|
+| POST   | `/clubes`                | `ClubeCreate`       | `ClubeResponse`     | Admin/Gestor | 201, 403, 409    | invalidate `stats`, `clubes:`       |
+| GET    | `/clubes`                | —                   | `[ClubeResponse]`   | JWT          | 200              | `clubes:org:{id}:list` TTL 30 s     |
+| GET    | `/clubesAdmin`           | —                   | `[ClubeResponse]`   | Admin        | 200              | `clubes:admin:list` TTL 30 s        |
+| PUT    | `/clubes/{id}`           | `ClubeCreate`       | `ClubeResponse`     | Admin/Gestor | 200, 404         | invalidate `stats`, `clubes:`       |
+| DELETE | `/clubes/{id}`           | —                   | —                   | Admin        | 204, 404         | invalidate `stats`, `clubes:`       |
+| POST   | `/clubes/{id}/ingressar` | —                   | `IngressarResponse` | JWT          | 201, 404, 409    | —                                   |
+
+### Utilizadores (`/utilizadores`)
+
+| Método | Rota                  | Body / Params       | Response               | Auth  | Status Codes | Cache                                        |
+|--------|-----------------------|---------------------|------------------------|-------|--------------|----------------------------------------------|
+| GET    | `/utilizadores`       | —                   | `[UtilizadorResponse]` | Admin | 200          | `utilizadores:list` TTL 30 s                 |
+| PUT    | `/utilizadores/{id}`  | `UtilizadorCreate`  | `UtilizadorResponse`   | Admin | 200, 404     | invalidate `stats`, `statstpuser`            |
+| DELETE | `/utilizadores/{id}`  | —                   | —                      | Admin | 204, 404     | invalidate `stats`, `statstpuser`, `registrations:` |
+
+### Tipos de Utilizador (`/tipouser`)
+
+| Método | Rota              | Body / Params    | Response             | Auth | Status Codes | Cache                                         |
+|--------|--------------------|------------------|----------------------|------|--------------|-----------------------------------------------|
+| POST   | `/tipouser`        | `TipoUserCreate` | `TipoUserResponse`  | JWT  | 200          | invalidate `stats`, `statstpuser`, `tipouser:` |
+| GET    | `/tipouser`        | —                | `[TipoUserResponse]` | —    | 200          | `tipouser:list` TTL 120 s                     |
+| PUT    | `/tipouser/{id}`   | `TipoUserCreate` | `TipoUserResponse`  | JWT  | 200, 404     | invalidate `stats`, `statstpuser`, `tipouser:` |
+| DELETE | `/tipouser/{id}`   | —                | —                    | JWT  | 204, 404     | invalidate `stats`, `statstpuser`, `tipouser:` |
+
+### Mapas (`/mapas`)
+
+| Método | Rota           | Body / Params | Response          | Auth         | Status Codes | Cache                          |
+|--------|----------------|---------------|-------------------|--------------|--------------|--------------------------------|
+| POST   | `/mapas`       | `MapaCreate`  | `MapaResponse`    | Admin/Gestor | 200, 404     | invalidate `stats`, `mapas:`   |
+| GET    | `/mapas`       | —             | `[MapaResponse]`  | JWT          | 200          | `mapas:list` TTL 60 s          |
+| PUT    | `/mapas/{id}`  | `MapaCreate`  | `MapaResponse`    | Admin/Gestor | 200, 404     | invalidate `stats`, `mapas:`   |
+| DELETE | `/mapas/{id}`  | —             | message           | Admin/Gestor | 200, 404     | invalidate `stats`, `mapas:`   |
+
+### Planos (`/planos`)
+
+| Método | Rota           | Body / Params | Response           | Auth | Status Codes | Cache                  |
+|--------|----------------|---------------|--------------------|------|--------------|------------------------|
+| GET    | `/planos`      | —             | `[PlanoResponse]`  | —    | 200          | `planos:list` TTL 120 s|
+| POST   | `/planos`      | `PlanoCreate` | `PlanoResponse`    | JWT  | 201          | invalidate `planos:`   |
+| PUT    | `/planos/{id}` | `PlanoCreate` | `PlanoResponse`    | JWT  | 200, 404     | invalidate `planos:`   |
+| DELETE | `/planos/{id}` | —             | —                  | JWT  | 204, 404     | invalidate `planos:`   |
+
+### Organizations (`/organizations`)
+
+| Método | Rota              | Body / Params | Response  | Auth  | Status Codes |
+|--------|--------------------|---------------|-----------|-------|--------------|
+| POST   | `/organizations`   | `nome`        | Org data  | Admin | 201          |
+| GET    | `/organizations`   | —             | `[Org]`   | Admin | 200          |
+
+### Pagamentos e Webhooks (Stripe)
+
+| Método | Rota                       | Body / Params    | Response     | Auth | Status Codes       |
+|--------|----------------------------|------------------|--------------|------|--------------------|
+| POST   | `/create-checkout-session` | `{plano_id}`     | `{url}`      | JWT  | 200, 400, 404, 502 |
+| POST   | `/stripe/webhook`          | Stripe payload   | `{status}`   | —    | 200, 400           |
+
+### Notificações (`/notificacoes`)
+
+| Método | Rota            | Body / Params | Response                | Auth | Status Codes |
+|--------|-----------------|---------------|-------------------------|------|--------------|
+| GET    | `/notificacoes` | —             | `[NotificacaoResponse]` | JWT  | 200          |
+
+### Estatísticas
+
+| Método | Rota             | Response                                        | Auth | Cache                          |
+|--------|-------------------|-------------------------------------------------|------|--------------------------------|
+| GET    | `/stats`          | `{clubes, utilizadores, tipousers, mapas}`      | —    | `stats` TTL 60 s               |
+| GET    | `/statstpuser`    | `{tipo_descricao: count, ...}`                  | JWT  | `statstpuser` TTL 60 s         |
+| GET    | `/registrations`  | `[{month: str, count: int}]` (12 meses)        | JWT  | `registrations:{year}` TTL 300 s |
+
+</details>
+
+<details>
+<summary><strong>Sequence Diagrams</strong></summary>
+
+### Autenticação (Login + Acesso Protegido)
 
 ```mermaid
 sequenceDiagram
@@ -516,7 +530,7 @@ sequenceDiagram
     F->>F: Armazena token + navigateTo("/dashboard")
 ```
 
-#### Stripe Checkout — Subscrição de Plano
+### Stripe Checkout — Subscrição de Plano
 
 ```mermaid
 sequenceDiagram
@@ -545,7 +559,7 @@ sequenceDiagram
     P->>P: "Plano Pro ativado com sucesso!"
 ```
 
-#### Stripe Webhook — Processamento Assíncrono de Eventos
+### Stripe Webhook — Processamento Assíncrono de Eventos
 
 ```mermaid
 sequenceDiagram
@@ -584,7 +598,7 @@ sequenceDiagram
     Note over W: Retry automático com backoff exponencial (max 5 tentativas)
 ```
 
-#### CRUD — Criar Clube (com RBAC + limites de plano)
+### CRUD — Criar Clube (com RBAC + limites de plano)
 
 ```mermaid
 sequenceDiagram
@@ -614,7 +628,7 @@ sequenceDiagram
     end
 ```
 
-#### Inscrição em Clube (via Calendário)
+### Inscrição em Clube (via Calendário)
 
 ```mermaid
 sequenceDiagram
@@ -649,7 +663,7 @@ sequenceDiagram
     C->>C: Swal.fire(response.mensagem)
 ```
 
-#### Dashboard — Carregamento de Estatísticas (com cache Redis)
+### Dashboard — Carregamento de Estatísticas (com cache Redis)
 
 ```mermaid
 sequenceDiagram
@@ -698,11 +712,12 @@ sequenceDiagram
     F->>F: Chart.js render (line + doughnut)
 ```
 
----
+</details>
 
-### Testes — Estratégia & Edge Cases
+<details>
+<summary><strong>Testes — Detalhe</strong></summary>
 
-#### Estratégia
+### Estratégia
 
 - **SQLite** para BD de testes (sem PostgreSQL)
 - **Redis mockado** no conftest (`_redis = MagicMock()`) — testes passam sem Redis local
@@ -712,21 +727,7 @@ sequenceDiagram
 - Startup event desativado em testes (`on_startup.clear()`)
 - Coverage gate: build falha se < 75%
 
-#### Breakdown por ficheiro
-
-```
-test_auth.py          7 passed   register, JWT, wrong password, tampered token, ...
-test_clubes.py        9 passed   CRUD, ingressar, duplicate 409, plan limit 403
-test_email.py         5 passed   SMTP config, send ok/fail, payment emails
-test_endpoints.py    14 passed   /me, /clubesAdmin, /organizations, /notificacoes, /planos CRUD
-test_mapas.py         7 passed   CRUD + 404s
-test_stats.py         5 passed   stats, statstpuser, registrations + no auth
-test_tipouser.py      6 passed   CRUD + 404s
-test_utilizadores.py  4 passed   CRUD + 404
-test_webhooks.py     15 passed   webhook validation, checkout flow, Celery task processing
-```
-
-#### Edge Cases Testados
+### Edge Cases Testados
 
 | Cenário | Status Code | Ficheiro |
 |---------|-------------|----------|
@@ -752,9 +753,7 @@ test_webhooks.py     15 passed   webhook validation, checkout flow, Celery task 
 </details>
 
 <details>
-<summary><strong>✦ ADRs · Docker · Setup Local</strong></summary>
-
-### Decisões Técnicas (ADR)
+<summary><strong>Decisões Técnicas (ADR)</strong></summary>
 
 | Decisão | Porquê |
 |---------|--------|
@@ -766,9 +765,10 @@ test_webhooks.py     15 passed   webhook validation, checkout flow, Celery task 
 | **RBAC** via `require_roles()` | FastAPI Dependency, enforcement server-side (3 roles: Admin/Gestor/Cliente) |
 | **UniqueConstraint** em `membro_clube` | Anti-duplicação a nível de BD, catch `IntegrityError` → 409 |
 
----
+</details>
 
-### Docker — Visão Geral
+<details>
+<summary><strong>Docker — Visão Geral</strong></summary>
 
 | Serviço    | Imagem             | Porta | Função                            |
 |------------|--------------------| ------|-----------------------------------|
@@ -798,9 +798,10 @@ graph LR
     WK --> RD
 ```
 
----
+</details>
 
-### Setup Local (sem Docker)
+<details>
+<summary><strong>Setup Local (sem Docker)</strong></summary>
 
 ```bash
 # Copiar .env de exemplo e preencher
