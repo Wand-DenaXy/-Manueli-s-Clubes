@@ -197,14 +197,16 @@ O Stripe tem um **timeout de 30 segundos** para o webhook. Se a lógica de negó
 
 ---
 
-## 8. Celery — Processamento Assíncrono
+## 8. Celery — Processamento Assíncrono, Retry & Backoff
 
 ```
 FastAPI worker  ──enfileira──►  Redis (broker)  ──consome──►  Celery worker
     (HTTP)                      (queue)                        (task)
 ```
 
-### Configuração de retry
+### Retry & Backoff
+
+Falhas temporárias (BD sobrecarregada, SMTP indisponível, timeout Stripe) não devem ser erros permanentes. O Celery tenta novamente automaticamente com **exponential backoff**:
 
 ```python
 @celery.task(
@@ -217,25 +219,100 @@ FastAPI worker  ──enfileira──►  Redis (broker)  ──consome──►
 )
 ```
 
-**Exponential backoff** — cada retry espera o dobro do anterior. Evita sobrecarregar um serviço externo (BD, SMTP) que possa estar temporariamente indisponível.
+| Tentativa | Espera | Razão |
+|---|---|---|
+| 1ª retry | 30 s | falha transitória comum |
+| 2ª retry | 60 s | dar tempo ao serviço para recuperar |
+| 3ª retry | 120 s | backoff progressivo |
+| 4ª retry | 240 s | serviço ainda em recuperação |
+| 5ª retry | 480 s | última tentativa antes de DLQ |
+
+**Por que backoff exponencial e não intervalo fixo?**  
+Com intervalo fixo, todos os workers em retry batem no mesmo serviço ao mesmo tempo — **thundering herd problem**. O backoff exponencial espalha os retries no tempo, reduzindo a pressão sobre o serviço que está a recuperar. O `retry_backoff_max=600` garante que nunca se espera mais de 10 minutos, evitando delays excessivos.
 
 ---
 
-## 9. Idempotência — Evitar Processar o Mesmo Evento Duas Vezes
+## 9. Idempotência e Deduplicação — Evitar Processar o Mesmo Evento Duas Vezes
 
 O Stripe pode reenviar o mesmo webhook várias vezes (network failure, timeout). Sem proteção, o utilizador seria cobrado duas vezes ou mudaria de plano múltiplas vezes.
 
-### Double-check pattern
+### Idempotência
+
+Uma operação é **idempotente** quando executá-la N vezes produz exactamente o mesmo resultado que executá-la uma só vez. O sistema garante esta propriedade guardando o `event_id` do Stripe na tabela `stripe_events` — qualquer reentrada com o mesmo ID é rejeitada antes de tocar em qualquer estado.
+
+### Deduplicação — Double-check pattern
+
+**Deduplicação** é o mecanismo concreto que implementa a idempotência: eliminar duplicados antes de processar. São usadas duas linhas de defesa:
 
 ```
-1. Webhook recebido → verificar StripeEventModel (event_id já existe?) → se sim: return {"duplicate"}
-2. Enfileirar task
-3. Task executa → verificar novamente (race condition entre HTTP workers)
-4. Processar lógica
-5. Guardar event_id na BD dentro da mesma transação
+┌─────────────────────────────────────────────────────────────────┐
+│  Linha 1 — Endpoint HTTP                                        │
+│  POST /stripe/webhook                                           │
+│    → verificar stripe_events (event_id já existe?)              │
+│    → SIM: return 200 {"status": "duplicate"}  (drop silencioso) │
+│    → NÃO: enfileirar Celery task                                │
+└─────────────────────────────────────────────────────────────────┘
+           ↓  (múltiplos workers podem receber o mesmo evento)
+┌─────────────────────────────────────────────────────────────────┐
+│  Linha 2 — Celery Worker                                        │
+│    → verificar novamente dentro da transação (race condition)   │
+│    → processar lógica de negócio                                │
+│    → INSERT stripe_events(event_id) + UPDATE utilizador.plano   │
+│       numa única transação atómica                              │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-A verificação dupla (no endpoint E na task) protege contra race conditions quando múltiplos HTTP workers recebem o mesmo evento ao mesmo tempo.
+A verificação dupla (no endpoint **e** na task) protege contra race conditions quando múltiplos HTTP workers recebem o mesmo evento simultaneamente. A verificação na task acontece dentro da mesma transação de base de dados que guarda o `event_id`, tornando-a atómica — ver Secção 17.
+
+---
+
+## 17. Operações Atómicas — Consistência sob Concorrência
+
+Uma **operação atómica** é indivisível: ou executa completamente ou não executa de todo. No sistema existem três contextos críticos onde a atomicidade é garantida:
+
+### 17.1 Processamento de Webhook Stripe
+
+A verificação de duplicado e o registo do evento acontecem na **mesma transação de BD**:
+
+```python
+# Dentro da Celery task — tudo ou nada
+try:
+    existing = db.query(StripeEventModel).filter_by(event_id=event_id).first()
+    if existing:
+        return {"status": "duplicate"}
+
+    # lógica de negócio
+    user.plano_id = novo_plano.id
+    db.add(StripeEventModel(event_id=event_id))  # regista o evento
+    db.commit()                                   # commit atómico dos dois
+except Exception:
+    db.rollback()                                 # nenhuma das alterações fica
+    raise
+```
+
+Se o commit falhar a meio (ex: crash do processo), o rollback garante que nem o plano é alterado nem o event_id é guardado — o webhook será reprocessado na próxima tentativa sem inconsistência.
+
+### 17.2 UniqueConstraint — Atomicidade a nível de BD
+
+A constraint de BD na tabela `membro_clube` é uma operação atómica garantida pelo motor de base de dados:
+
+```sql
+CREATE UNIQUE INDEX uq_membro_clube
+    ON membro_clube (utilizador_id, clube_id);
+```
+
+Mesmo que dois pedidos HTTP cheguem em simultâneo tentando inscrever o mesmo utilizador no mesmo clube, a BD garante atomicamente que só um `INSERT` tem sucesso — o outro recebe um erro de constraint, sem necessidade de locks explícitos na aplicação.
+
+### 17.3 Cache Invalidation — Read-Modify-Write
+
+As operações de escrita seguem sempre a sequência:
+
+```
+1. db.commit()           ← persistir na BD primeiro
+2. cache_invalidate()    ← só depois invalidar o cache
+```
+
+Inverter a ordem criaria uma janela de inconsistência: se o processo crashasse após invalidar o cache mas antes de fazer commit, o cache ficaria vazio mas a BD teria o estado antigo. Com a ordem correcta, no pior caso o cache serve dados ligeiramente obsoletos até ao próximo TTL.
 
 ---
 
@@ -365,3 +442,48 @@ O gate de cobertura impede que código novo reduza drasticamente a qualidade dos
 | `frontend` | ./nuxt-app/Dockerfile | 3000 | Nuxt 3 SSR |
 
 O `worker` usa a mesma imagem do `api` mas executa `celery -A app.celery_app worker` em vez de `uvicorn` — reutilização de imagem sem duplicar o Dockerfile.
+
+---
+
+## 18. Padrões de Resiliência — Sumário
+
+O sistema aplica seis padrões de resiliência de forma coordenada. A tabela seguinte mostra onde cada padrão é aplicado e qual problema resolve:
+
+| Padrão | Onde é aplicado | Problema que resolve |
+|---|---|---|
+| **Idempotência** | Webhooks Stripe (`stripe_events`) | Reprocessamento de eventos duplicados enviados pelo Stripe |
+| **Deduplicação** | Double-check no endpoint + na Celery task | Race condition entre múltiplos HTTP workers |
+| **Caching** | Redis (Cache-Aside, TTL + invalidação por prefixo) | Latência e carga excessiva em queries repetidas à BD |
+| **Rate Limiting** | SlowAPI + Redis por IP | Brute-force, credential stuffing, abuso de API |
+| **Atomic Operations** | Transações SQLAlchemy, UniqueConstraint, ordem commit→invalidate | Inconsistência de dados sob concorrência e falhas parciais |
+| **Retry & Backoff** | Celery (exponential backoff, max 5 retries) | Falhas transitórias em serviços externos (BD, SMTP, Stripe) |
+
+### Como os padrões se complementam
+
+```
+Pedido entra
+  │
+  ├─► Rate Limit (SlowAPI)         ← bloqueia abuso antes de chegar à lógica
+  │
+  ├─► Cache HIT?  ──SIM──►  responde imediatamente (sem BD)
+  │       │
+  │      NÃO
+  │       │
+  ├─► Lógica de negócio (BD)
+  │       │
+  │   (webhook Stripe)
+  │       │
+  │       ├─► Deduplicação (linha 1) — endpoint descarta duplicados
+  │       │
+  │       └─► Enfileira Celery task
+  │               │
+  │               ├─► Deduplicação (linha 2) — task verifica novamente
+  │               │
+  │               ├─► Operação Atómica — commit BD + registo event_id
+  │               │
+  │               └─► Retry & Backoff — se falhar, tenta até 5× com espera crescente
+  │
+  └─► Cache Invalidation — dados actualizados, cache limpo atomicamente
+```
+
+Nenhum padrão é suficiente sozinho: o Rate Limit não protege contra eventos duplicados; a Deduplicação não resolve falhas de SMTP; o Retry sem Backoff agrava falhas em cascata. A robustez do sistema vem da **combinação** destes padrões em camadas.
