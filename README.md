@@ -40,7 +40,7 @@ Goal: take an idea from **zero to production** using the same practices as a com
 ## ✦ Project in Numbers
 
 | | |
-|---|---|
+    |---|---|
 | **34 REST endpoints** — auth, CRUD, stats, payments, webhooks | **72 tests** · 93% coverage · CI gate ≥ 75% |
 | **9 ORM models** + 16 Pydantic schemas | **Stripe Checkout** (subscriptions) + Celery webhooks |
 | **RBAC** — Admin · Manager · Client | **Redis** cache TTL + invalidation + Celery broker |
