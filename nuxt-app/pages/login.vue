@@ -104,13 +104,17 @@ async function fazerLogin() {
       body: formData
     })
 
+    if (response.status === 429) {
+      throw createError({ statusCode: 429, message: 'Too Many Requests' })
+    }
+
     if (!response.ok) {
-            return Swal.fire({
-      title: 'Erro!',
-      text: 'Credenciais inválidas.',
-      icon: 'error',
-      confirmButtonText: 'Ok'
-    })
+      return Swal.fire({
+        title: 'Erro!',
+        text: 'Credenciais inválidas.',
+        icon: 'error',
+        confirmButtonText: 'Ok'
+      })
     }
 
     const data = await response.json()

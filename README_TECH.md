@@ -30,13 +30,14 @@ This project exists to answer a simple question: can I take an idea from zero to
 
 ## ✦ Project in Numbers
 
-| | |
+| Architecture & Features | Quality & Infrastructure |
 |---|---|
 | **34 REST endpoints** — auth, CRUD, stats, payments, webhooks | **72 tests** · 93% coverage · CI gate ≥ 75% |
 | **9 ORM models** + 16 Pydantic schemas | **Stripe Checkout** (subscriptions) + Celery webhooks |
 | **RBAC** — Admin · Manager · Client | **Redis** cache TTL + invalidation + Celery broker |
 | **Multi-tenancy** by organization | **Docker Compose** — 5 production-ready containers |
 | **Automatic emails** on every payment | **CI/CD** — tests + lint + Docker build on every push |
+| **Rate limiting** — slowapi · per-IP · Redis storage | `429` on auth brute-force (`5–10 req/min`) · `100 req/min` global |
 
 ---
 
@@ -63,7 +64,7 @@ Webhooks processed via **Celery** with retry (exponential backoff, max 5), idemp
 | Backend | Frontend | Infra |
 |---------|----------|-------|
 | Python 3.11 · FastAPI · SQLAlchemy | Nuxt 3 · Vue 3 · Bootstrap 5 | PostgreSQL 15 · Redis 7 |
-| Celery 5.4 · Stripe 8.4 | Chart.js · Leaflet · FullCalendar | Docker Compose · GitHub Actions |
+| Celery 5.4 · Stripe 8.4 · slowapi 0.1.9 | Chart.js · Leaflet · FullCalendar | Docker Compose · GitHub Actions |
 | JWT (HS256) · Argon2id · SMTP | SweetAlert2 | ruff (lint) · pytest-cov |
 
 ---
@@ -136,6 +137,7 @@ docker compose up --build          # 5 containers ready
 │   │   ├── models.py                # 9 ORM models + 16 Pydantic schemas
 │   │   ├── database.py              # PostgreSQL connection pool (SQLAlchemy)
 │   │   ├── cache.py                 # Redis cache with TTL + prefix invalidation
+│   │   ├── limiter.py               # slowapi Limiter — per-IP rate limiting (Redis storage)
 │   │   ├── celery_app.py            # Celery config (Redis broker)
 │   │   ├── task.py                  # Async task: Stripe webhook processing
 │   │   ├── email_service.py         # HTML email sending via SMTP (TLS)
@@ -407,14 +409,44 @@ Redis serves as cache (`SETEX` + `SCAN`/`DEL` by prefix) and Celery broker in a 
 </details>
 
 <details>
+<summary><strong>Rate Limiting — slowapi (per IP · Redis storage)</strong></summary>
+
+Implemented via **slowapi 0.1.9** + `SlowAPIMiddleware`. Key function: client IP (`get_remote_address`). Storage: same Redis instance (`REDIS_URL`). Exceeding a limit returns `429 Too Many Requests`.
+
+```python
+# limiter.py
+limiter = Limiter(
+    key_func=get_remote_address,
+    storage_uri=os.getenv("REDIS_URL", "redis://localhost:6379/0"),
+    default_limits=["100/minute"],
+)
+```
+
+| Endpoint            | Limit      | Decorator                       | Reason                          |
+|---------------------|------------|---------------------------------|---------------------------------|
+| `POST /auth/`       | 10/min/IP  | `@limiter.limit("10/minute")`   | Prevent registration spam       |
+| `POST /auth/token`  | 5/min/IP   | `@limiter.limit("5/minute")`    | Brute-force protection on login |
+| All other routes    | 100/min/IP | global `default_limits`         | General abuse prevention        |
+
+The middleware is registered at app startup:
+
+```python
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
+```
+
+</details>
+
+<details>
 <summary><strong>API Endpoints</strong></summary>
 
 ### Auth (`/auth`)
 
-| Method | Route          | Body / Params                              | Response          | Auth |
-|--------|----------------|--------------------------------------------|-------------------|------|
-| POST   | `/auth/`       | `{username, password, tipo_id}`            | `201` message     | —    |
-| POST   | `/auth/token`  | FormData: `username, password, tipo_id`    | `{access_token, token_type}` | — |
+| Method | Route          | Body / Params                              | Response          | Auth | Rate Limit |
+|--------|----------------|--------------------------------------------|-------------------|------|------------|
+| POST   | `/auth/`       | `{username, password, tipo_id}`            | `201` message     | —    | 10/min/IP  |
+| POST   | `/auth/token`  | FormData: `username, password, tipo_id`    | `{access_token, token_type}` | — | 5/min/IP |
 
 ### Profile (`/me`)
 
@@ -749,6 +781,8 @@ sequenceDiagram
 | Task: user not found in payment_failed | skipped | `test_webhooks.py` |
 | SMTP not configured | False (no-op) | `test_email.py` |
 | SMTP send failure | False | `test_email.py` |
+| Rate limit exceeded on `POST /auth/token` | 429 | `test_auth.py` |
+| Rate limit exceeded on `POST /auth/` | 429 | `test_auth.py` |
 
 </details>
 
@@ -764,6 +798,7 @@ sequenceDiagram
 | **Multi-tenancy** by organization | `WHERE organization_id = user.organization_id` in queries, no schema separation |
 | **RBAC** via `require_roles()` | FastAPI Dependency, server-side enforcement (3 roles: Admin/Manager/Client) |
 | **UniqueConstraint** on `membro_clube` | Anti-duplication at DB level, catch `IntegrityError` → 409 |
+| **slowapi** for rate limiting | Lightest integration with FastAPI; shares Redis already in the stack — no extra service |
 
 </details>
 

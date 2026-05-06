@@ -46,16 +46,17 @@ Goal: take an idea from **zero to production** using the same practices as a com
 | **RBAC** — Admin · Manager · Client | **Redis** cache TTL + invalidation + Celery broker |
 | **Multi-tenancy** by organization | **Docker Compose** — 5 production-ready containers |
 | **Automatic emails** on every payment | **CI/CD** — tests + lint + Docker build on every push |
+| **Rate limiting** — slowapi · per-IP · Redis storage | `429` on auth brute-force (`5–10 req/min`) · `100 req/min` global |
 
 <details>
 <summary><strong>API Endpoints</strong></summary>
 
 ### Auth (`/auth`)
 
-| Method | Route          | Body / Params                              | Response          | Auth |
-|--------|----------------|--------------------------------------------|-------------------|----- |
-| POST   | `/auth/`       | `{username, password, tipo_id}`            | `201` message     | —    |
-| POST   | `/auth/token`  | FormData: `username, password, tipo_id`    | `{access_token, token_type}` | — |
+| Method | Route          | Body / Params                              | Response          | Auth | Rate Limit |
+|--------|----------------|--------------------------------------------|-------------------|------|------------|
+| POST   | `/auth/`       | `{username, password, tipo_id}`            | `201` message     | —    | 10/min/IP  |
+| POST   | `/auth/token`  | FormData: `username, password, tipo_id`    | `{access_token, token_type}` | — | 5/min/IP |
 
 ### Profile (`/me`)
 
@@ -151,6 +152,16 @@ Redis serves as cache (`SETEX` + `SCAN`/`DEL` by prefix) and Celery broker in a 
 | `/planos`        | `planos:list`          | 120 s  | CRUD plans           |
 | `/utilizadores`  | `utilizadores:list`    | 30 s   | PUT /me/plano, DEL   |
 
+### Rate Limiting — slowapi (per IP · Redis storage)
+
+Implemented via **slowapi 0.1.9** + `SlowAPIMiddleware`. Key function: client IP (`get_remote_address`). Storage: same Redis instance. Exceeding a limit returns `429 Too Many Requests`.
+
+| Endpoint            | Limit      | Reason                          |
+|---------------------|------------|---------------------------------|
+| `POST /auth/`       | 10/min/IP  | Prevent registration spam       |
+| `POST /auth/token`  | 5/min/IP   | Brute-force protection on login |
+| All other routes    | 100/min/IP | Global default                  |
+
 </details>
 
 ---
@@ -178,7 +189,7 @@ Webhooks processed via **Celery** with retry (exponential backoff, max 5), idemp
 | Backend | Frontend | Infra |
 |---------|----------|-------|
 | Python 3.11 · FastAPI · SQLAlchemy | Nuxt 3 · Vue 3 · Bootstrap 5 | PostgreSQL 15 · Redis 7 |
-| Celery 5.4 · Stripe 8.4 | Chart.js · Leaflet · FullCalendar | Docker Compose · GitHub Actions |
+| Celery 5.4 · Stripe 8.4 · slowapi 0.1.9 | Chart.js · Leaflet · FullCalendar | Docker Compose · GitHub Actions |
 | JWT (HS256) · Argon2id · SMTP | SweetAlert2 | ruff (lint) · pytest-cov |
 
 ---
