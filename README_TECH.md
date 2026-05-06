@@ -10,10 +10,10 @@
 
 <p>
   <a href="https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions"><img alt="CI" src="https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions/workflows/ci.yml/badge.svg" /></a>
-  <img alt="Coverage" src="https://img.shields.io/badge/coverage-93%25-brightgreen?logo=pytest&logoColor=white" />
+    <img alt="Coverage" src="https://img.shields.io/badge/coverage-84%25-brightgreen?logo=pytest&logoColor=white" />
   <img alt="Python" src="https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white" />
   <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white" />
-  <img alt="Nuxt" src="https://img.shields.io/badge/Nuxt-3-00DC82?logo=nuxtdotjs&logoColor=white" />
+    <img alt="Nuxt" src="https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxtdotjs&logoColor=white" />
   <img alt="Stripe" src="https://img.shields.io/badge/Stripe-Checkout%20+%20Webhooks-635BFF?logo=stripe&logoColor=white" />
   <img alt="Docker" src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white" />
 </p>
@@ -24,7 +24,7 @@
 
 ## ✦ Why this project?
 
-This project exists to answer a simple question: can I take an idea from zero to production alone? Real payments, async webhooks, multi-tenancy, RBAC, CI/CD with quality gates. The answer is here.
+This project exists to answer a simple question: can I take an idea from zero to production alone? Real payments, async webhooks, multi-tenancy, RBAC, CI with quality gates. The answer is here.
 
 ---
 
@@ -32,11 +32,11 @@ This project exists to answer a simple question: can I take an idea from zero to
 
 | Architecture & Features | Quality & Infrastructure |
 |---|---|
-| **34 REST endpoints** — auth, CRUD, stats, payments, webhooks | **72 tests** · 93% coverage · CI gate ≥ 75% |
+| **34 REST endpoints** — auth, CRUD, stats, payments, webhooks | **72 tests** · 84% coverage · CI gate ≥ 75% |
 | **9 ORM models** + 16 Pydantic schemas | **Stripe Checkout** (subscriptions) + Celery webhooks |
 | **RBAC** — Admin · Manager · Client | **Redis** cache TTL + invalidation + Celery broker |
 | **Multi-tenancy** by organization | **Docker Compose** — 5 production-ready containers |
-| **Automatic emails** on every payment | **CI/CD** — tests + lint + Docker build on every push |
+| **Automatic emails** on every payment | **CI** — tests + lint + API Docker build on every push |
 | **Rate limiting** — slowapi · per-IP · Redis storage | `429` on auth brute-force (`5–10 req/min`) · `100 req/min` global |
 
 ---
@@ -63,7 +63,7 @@ Webhooks processed via **Celery** with retry (exponential backoff, max 5), idemp
 
 | Backend | Frontend | Infra |
 |---------|----------|-------|
-| Python 3.11 · FastAPI · SQLAlchemy | Nuxt 3 · Vue 3 · Bootstrap 5 | PostgreSQL 15 · Redis 7 |
+| Python 3.11 · FastAPI · SQLAlchemy | Nuxt 4 · Vue 3 · Bootstrap 5 | PostgreSQL 15 · Redis 7 |
 | Celery 5.4 · Stripe 8.4 · slowapi 0.1.9 | Chart.js · Leaflet · FullCalendar | Docker Compose · GitHub Actions |
 | JWT (HS256) · Argon2id · SMTP | SweetAlert2 | ruff (lint) · pytest-cov |
 
@@ -74,16 +74,16 @@ Webhooks processed via **Celery** with retry (exponential backoff, max 5), idemp
 [![CI](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions/workflows/ci.yml/badge.svg)](https://github.com/Wand-DenaXy/-Manueli-s-Clubes/actions)
 
 ```
-72 tests · 93% coverage · lint clean · Docker build OK
+72 tests · 84% coverage · lint clean · API Docker build OK
 ```
 
-Every push/PR triggers **3 required jobs** — all must pass for the Docker build to run:
+Every push/PR triggers **3 required jobs** — all must pass for the API Docker build to run:
 
 | Job | Fails if… |
 |-----|-----------|
 | **Tests + Coverage** | Any test fails **or** coverage < 75% |
 | **Lint (ruff)** | Any code violation |
-| **Docker Build** | Image fails to build |
+| **API Docker Build** | API image fails to build |
 
 Edge cases: forged JWT → 401 · duplicate username → 400 · plan limit → 403 · duplicate join → 409 · invalid webhook → 400 · duplicate event → idempotency · Stripe API error → 502 · SMTP off → no-op.
 
@@ -126,7 +126,7 @@ docker compose up --build          # 5 containers ready
 ├── package.json                     # global deps (Bootstrap, Chart.js, Leaflet)
 ├── .github/
 │   └── workflows/
-│       └── ci.yml                   # CI pipeline: tests + lint + Docker build
+│       └── ci.yml                   # CI pipeline: tests + lint + API Docker build
 │
 ├── api/                             # Backend (FastAPI + Celery)
 │   ├── Dockerfile                   # python:3.11-slim → uvicorn :8000
@@ -154,7 +154,7 @@ docker compose up --build          # 5 containers ready
 │       ├── test_utilizadores.py
 │       └── test_webhooks.py
 │
-└── nuxt-app/                        # Frontend (Nuxt 3)
+└── nuxt-app/                        # Frontend (Nuxt 4)
     ├── Dockerfile                   # node:20 → :3000
     ├── pages/
     │   ├── index.vue                # Landing — public stats
@@ -227,7 +227,7 @@ C4Container
     Person(user, "User")
 
     Container_Boundary(frontend, "Frontend") {
-        Container(nuxt, "Nuxt 3 App", "Vue 3, SSR, Nitro", "SPA/SSR served to browser. File-based routing, Composition API.")
+        Container(nuxt, "Nuxt 4 App", "Vue 3, SSR, Nitro", "SPA/SSR served to browser. File-based routing, Composition API.")
     }
 
     Container_Boundary(backend, "Backend") {
@@ -781,9 +781,6 @@ sequenceDiagram
 | Task: user not found in payment_failed | skipped | `test_webhooks.py` |
 | SMTP not configured | False (no-op) | `test_email.py` |
 | SMTP send failure | False | `test_email.py` |
-| Rate limit exceeded on `POST /auth/token` | 429 | `test_auth.py` |
-| Rate limit exceeded on `POST /auth/` | 429 | `test_auth.py` |
-
 </details>
 
 <details>
@@ -811,7 +808,7 @@ sequenceDiagram
 | `redis`    | `redis:7-alpine`   | 6379  | Cache + Celery broker             |
 | `api`      | `python:3.11-slim` | 8000  | FastAPI + Uvicorn                 |
 | `worker`   | `python:3.11-slim` | —     | Celery worker (webhooks + emails) |
-| `frontend` | `node:20`          | 3000  | Nuxt 3 SSR                        |
+| `frontend` | `node:20`          | 3000  | Nuxt 4 SSR                        |
 
 ```bash
 docker compose up --build        # starts the 5 containers
@@ -839,8 +836,7 @@ graph LR
 <summary><strong>Local Setup (without Docker)</strong></summary>
 
 ```bash
-# Copy example .env and fill it in
-cp api/.env.example api/.env
+# Create api/.env manually and fill it in
 
 # Backend
 cd api/app && pip install -r requirements.txt
