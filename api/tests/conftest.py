@@ -36,6 +36,10 @@ _cache_mod._redis = MagicMock()
 _cache_mod._redis.get.return_value = None
 _cache_mod._redis.scan_iter.return_value = []
 
+# ── Disable SlowAPI rate limiter so tests never need Redis ───────
+import app.limiter as _limiter_mod
+_limiter_mod.limiter.enabled = False
+
 # ── in-memory SQLite engine for tests ────────────────────────────
 SQLALCHEMY_TEST_URL = "sqlite:///./test.db"
 engine = create_engine(SQLALCHEMY_TEST_URL, connect_args={"check_same_thread": False})

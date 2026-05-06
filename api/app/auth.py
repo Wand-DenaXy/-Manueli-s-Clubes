@@ -1,6 +1,6 @@
 from datetime import timedelta, datetime
 from typing import Annotated
-from fastapi import APIRouter, HTTPException, Depends, Form
+from fastapi import APIRouter, HTTPException, Depends, Form, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from starlette import status
@@ -11,6 +11,7 @@ from app.models import UtilizadorModel
 from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
+from app.limiter import limiter
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 load_dotenv()
@@ -63,7 +64,8 @@ db_dependency = Annotated[Session, Depends(get_db)]
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
-async def register(db: db_dependency, create_user_request: CreateUserRequest):
+@limiter.limit("10/minute")
+async def register(request: Request, db: db_dependency, create_user_request: CreateUserRequest):
     user = db.query(UtilizadorModel).filter(
         UtilizadorModel.username == create_user_request.username
     ).first()
@@ -86,7 +88,9 @@ async def register(db: db_dependency, create_user_request: CreateUserRequest):
 
 
 @router.post("/token", response_model=Token)
+@limiter.limit("5/minute")
 async def login(
+    request: Request,
     form_data: Annotated[OAuth2PasswordRequestFormWithTipo, Depends()],
     db: db_dependency,
 ):
