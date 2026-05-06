@@ -5,6 +5,10 @@ from app import auth
 from app.task import process_stripe_event
 from fastapi import FastAPI, Depends, HTTPException,Response,Request
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from app.limiter import limiter
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from passlib.context import CryptContext
@@ -28,6 +32,9 @@ from app.models import (
 )
 
 app = FastAPI(title="API Manueli's Clubes", description="API para gestão de clubes e utilizadores")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 app.include_router(auth.router)
 app.add_middleware(
     CORSMiddleware,
