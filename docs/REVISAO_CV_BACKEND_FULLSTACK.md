@@ -1,246 +1,258 @@
-# Revisão do CV — Backend e Full-Stack
+# Revisao Final do CV - Backend e Full-Stack
 
-Baseado nas imagens dos 4 CVs enviados: backend EN, backend PT, full-stack EN e full-stack PT.
+Documento final para usar como base de atualizacao dos 4 CVs:
+- Backend PT-PT
+- Backend EN
+- Full-Stack PT-PT
+- Full-Stack EN
 
----
-
-## Nota de Venda
-
-### CV Backend — atual
-
-- `7.5/10`
-
-### CV Full-Stack — atual
-
-- `7/10`
-
-### Como te estás a vender no geral — atual
-
-- `7/10`
-
-### Potencial com a versão corrigida abaixo
-
-- Backend: `8.5/10`
-- Full-Stack: `8/10`
+Objetivo: curriculo mais tecnico, mensuravel, competitivo e orientado a impacto real, sem inventar experiencia.
 
 ---
 
-## O Que Está Forte No Teu CV
+## 1) Erros e pontos fracos do CV original
 
-- O layout está limpo e legível.
-- O projeto principal está logo no topo, o que é a decisão certa.
-- A experiência na Arrow4D ajuda a provar que não tens só projetos de escola.
-- Já usas linguagem de entrega real: multi-tenant, Stripe, RBAC, JWT, Redis, Celery.
-- O CV passa imagem de alguém que constrói software completo e não apenas exercícios.
+### Problemas criticos (corrigir antes de enviar)
 
----
+- Metricas desatualizadas no projeto principal:
+  - 93% coverage -> 84% coverage
+  - CI/CD -> CI
+  - Nuxt 3 -> Nuxt 4
+  - Docker build -> API Docker build (mais rigor tecnico)
+- Bullets excessivamente orientadas a lista de tecnologias, com pouco foco no problema resolvido e no resultado.
+- Frases de performance sem dado concreto devem ser suavizadas para nao parecer overclaim.
+- Skills pouco focadas por tipo de vaga:
+  - Backend: excesso de ruido para stacks nao alvo da vaga.
+  - Full-Stack: falta equilibrio entre UX/produto e profundidade tecnica.
 
-## O Que Está A Baixar A Força Do CV
+### O que ja estava forte
 
-- Estás a usar métricas desatualizadas no projeto: `93% coverage`, `CI/CD` e `Nuxt 3` já não estão alinhados com o estado atual do repo.
-- O projeto é vendido demasiado como lista de tecnologias e pouco como problema resolvido.
-- Algumas bullets são redundantes entre si.
-- O CV backend ainda está demasiado aberto em skills; PHP, Laravel, Kotlin e Flutter diluem foco se a vaga for Python backend.
-- O CV full-stack também pode ser mais forte se o projeto destacar mais os fluxos completos de produto: dashboard, calendário, mapas, pagamentos e notificações.
-- Frases como `reducing load` ou `improving API performance` são boas, mas sem métrica concreta convém suavizar a formulação.
-
----
-
-## Correções Obrigatórias No Projeto
-
-Estas tens mesmo de corrigir no CV antes de enviar:
-
-- `93% coverage` → `84% coverage`
-- `CI/CD` → `CI`
-- `Nuxt 3` → `Nuxt 4`
-- `Docker build` → `API Docker build` se queres ser 100% rigoroso com o workflow atual
+- Layout limpo e legivel.
+- Projeto principal bem posicionado no topo.
+- Linguagem tecnica acima da media (RBAC, JWT, Stripe, Redis, Celery, multi-tenancy).
+- Sinal claro de capacidade de entrega end-to-end.
 
 ---
 
-## Recomendação de Posicionamento
+## 2) Melhorias aplicadas nesta revisao
 
-### Para CV Backend
-
-O teu foco deve ser:
-
-- arquitetura backend
-- Stripe + webhooks + Celery
-- Redis cache + rate limiting
-- testes + CI
-- multi-tenancy + RBAC
-
-### Para CV Full-Stack
-
-O teu foco deve ser:
-
-- ownership end-to-end
-- frontend + backend + pagamentos
-- dashboard + mapas + calendário + subscriptions
-- produto real e integração entre camadas
+- Reescrita de experiencias e projetos no metodo XYZ:
+  - Realizei X utilizando Y, resultando em Z.
+  - Melhorei X atraves de Y, aumentando/reduzindo Z.
+  - Desenvolvi X com Y, reduzindo erros/tempo/carga/performance em Z.
+- Reforco de linguagem de engenharia real:
+  - arquitetura, integracao, resiliencia, idempotencia, retries, observabilidade tecnica basica.
+- Estruturacao forte para ATS:
+  - headlines de mercado,
+  - resumo tecnico objetivo,
+  - hard skills por categorias,
+  - keywords modernas de software engineering.
+- Posicionamento separado por alvo de vaga:
+  - Backend generalista (nao apenas Python).
+  - Full-Stack generalista.
 
 ---
 
-## Ajuste Recomendado Nas Skills
+## 3) Versao final - Backend Developer (PT-PT)
 
-### Backend CV — skills recomendadas
+### Headline
 
-**Back-End:** Python · FastAPI · SQLAlchemy · PostgreSQL · Redis · Celery · Stripe · JWT  
-**Front-End:** Nuxt · Vue 3 · JavaScript · Bootstrap  
-**Tools:** Docker · GitHub Actions · pytest · ruff · Git  
-**Languages:** Portuguese (Native) · English (B1) · Spanish (A2)
+Backend Developer | APIs, Arquitetura, Bases de Dados, Seguranca e Integracao de Sistemas
 
-### Full-Stack CV — skills recomendadas
+### Resumo profissional
 
-**Front-End:** Nuxt · Vue 3 · JavaScript · Bootstrap · HTML/CSS  
-**Back-End:** Python · FastAPI · SQLAlchemy · PostgreSQL · Redis · Celery · Stripe · JWT  
-**Tools:** Docker · GitHub Actions · pytest · ruff · Git  
-**Languages:** Portuguese (Native) · English (B1) · Spanish (A2)
+Engenheiro de software junior orientado a backend, com experiencia em desenvolvimento de APIs REST, autenticacao/autorizacao, modelacao de dados, integracoes de pagamento e processamento assincrono. Entrego solucoes com foco em fiabilidade, seguranca, performance e qualidade tecnica, suportadas por testes automatizados e CI.
 
-Se quiseres manter Laravel/PHP/MySQL, coloca-os depois dos stacks principais ou usa um bloco `Additional`.
+### Hard Skills (Backend)
 
----
+- Linguagens: Python, JavaScript, SQL, PHP
+- APIs e Backend: FastAPI, REST, OpenAPI, JWT, RBAC, CRUD, Webhooks, SMTP
+- Bases de dados e persistencia: PostgreSQL, SQLAlchemy, Redis
+- Processamento assincrono: Celery, filas, retries, idempotencia
+- Infraestrutura e DevOps: Docker, Docker Compose, GitHub Actions, CI, Linux
+- Qualidade de codigo: pytest, cobertura, linting, quality gates
 
-## Texto Final — Backend EN
+### Experiencia - Arrow4D (XYZ)
 
-### Role line
+- Desenvolvi de raiz uma plataforma B2C full-stack utilizando FastAPI e Nuxt, resultando em 4 dashboards por perfil e utilizacao real por clientes.
+- Estruturei uma API REST com 40+ endpoints utilizando FastAPI, SQLAlchemy e PostgreSQL, resultando em maior manutenibilidade e escalabilidade por dominio.
+- Implementei autenticacao JWT e RBAC atraves de isolamento de permissoes em 4 perfis, aumentando a seguranca de acesso da aplicacao.
+- Automatizei o ciclo de aluguer com carrinho persistente e faturacao integrada, reduzindo tarefas manuais no fluxo operacional.
 
-`[Back-End]`
+### Projeto em destaque - Manueli's Clubes (XYZ)
 
-### Manueli's Clubes — replacement bullets
-
-- Built a **multi-tenant SaaS platform** with **RBAC (3 roles)**, organization-based data isolation, JWT authentication, and subscription plan limits.
-- Implemented **recurring payments with Stripe Checkout** and **asynchronous webhook processing with Celery + Redis**, including retries and idempotency.
-- Designed and shipped a **FastAPI backend with 34 REST endpoints**, covering auth, CRUD, stats, memberships, payments, notifications, and webhooks.
-- Added **Redis caching and per-IP rate limiting**, including TTL-based caching and prefix invalidation for critical endpoints.
-- Structured the project with **72 automated tests, 84% coverage, and CI quality gates** for tests, linting, and API Docker build validation.
-
-### Short one-line version
-
-Built a backend-heavy SaaS for club management with FastAPI, PostgreSQL, Redis, Celery, Stripe, JWT, RBAC, multi-tenancy, 34 REST endpoints, and 72 automated tests.
+- Desenvolvi uma plataforma SaaS multi-tenant utilizando FastAPI, JWT e RBAC, resultando em isolamento de dados por organizacao e controlo de limites por plano.
+- Implementei pagamentos recorrentes com Stripe Checkout e processamento assincrono de webhooks com Celery + Redis, resultando em resiliencia com retries e idempotencia.
+- Estruturei o backend com 34 endpoints REST para autenticacao, CRUD, memberships, stats, notificacoes e pagamentos, resultando em cobertura funcional end-to-end.
+- Melhorei robustez operacional atraves de cache Redis com TTL/invalidacao por prefixo e rate limiting por IP, reduzindo carga em endpoints criticos e risco de abuso.
+- Garanti qualidade tecnica com 72 testes automatizados e 84% de cobertura, resultando em CI com validacao de testes, lint e API Docker build.
 
 ---
 
-## Texto Final — Backend PT
+## 4) Versao final - Backend Developer (EN)
 
-### Linha de role
+### Headline
 
-`[Back-End]`
+Backend Developer | APIs, Architecture, Databases, Security, Systems Integration
 
-### Manueli's Clubes — bullets para substituir
+### Professional summary
 
-- Desenvolvi uma **plataforma SaaS multi-tenant** com **RBAC (3 perfis)**, isolamento de dados por organização, autenticação JWT e limites por plano.
-- Implementei **pagamentos recorrentes com Stripe Checkout** e **processamento assíncrono de webhooks com Celery + Redis**, incluindo retries e idempotência.
-- Estruturei um **backend em FastAPI com 34 endpoints REST**, cobrindo autenticação, CRUD, estatísticas, memberships, pagamentos, notificações e webhooks.
-- Adicionei **cache Redis e rate limiting por IP**, com TTL e invalidação por prefixo para endpoints críticos.
-- Garanti qualidade com **72 testes automatizados, 84% de cobertura e CI** com validação de testes, lint e build Docker da API.
+Junior software engineer focused on backend development, with hands-on experience in REST APIs, authentication/authorization, data modeling, payment integrations, and asynchronous processing. I build reliable and secure systems with performance and engineering quality in mind, supported by automated testing and CI.
 
-### Versão curta de uma linha
+### Hard Skills (Backend)
 
-Desenvolvi um backend SaaS para gestão de clubes com FastAPI, PostgreSQL, Redis, Celery, Stripe, JWT, RBAC, multi-tenancy, 34 endpoints REST e 72 testes automatizados.
+- Languages: Python, JavaScript, SQL, PHP
+- Backend and APIs: FastAPI, REST, OpenAPI, JWT, RBAC, CRUD, Webhooks, SMTP
+- Data and persistence: PostgreSQL, SQLAlchemy, Redis
+- Async processing: Celery, queues, retries, idempotency
+- Infrastructure and DevOps: Docker, Docker Compose, GitHub Actions, CI, Linux
+- Code quality: pytest, test coverage, linting, quality gates
 
----
+### Experience - Arrow4D (XYZ)
 
-## Texto Final — Full-Stack EN
+- Built a B2C full-stack platform from scratch using FastAPI and Nuxt, resulting in 4 role-based dashboards and real production usage.
+- Architected a 40+ endpoint REST API with FastAPI, SQLAlchemy, and PostgreSQL, resulting in stronger maintainability and domain scalability.
+- Implemented JWT authentication and RBAC with 4-role permission isolation, increasing access-control security across the platform.
+- Automated the rental lifecycle with persistent cart and integrated billing, reducing manual operational workflows.
 
-### Role line
+### Featured project - Manueli's Clubes (XYZ)
 
-`[Full-Stack]`
-
-### Manueli's Clubes — replacement bullets
-
-- Built an **end-to-end SaaS platform** for club management with **Nuxt/Vue on the frontend** and **FastAPI on the backend**.
-- Delivered full product flows including **JWT authentication, RBAC, multi-tenancy, dashboard analytics, interactive maps, club calendar, and subscription plans**.
-- Integrated **Stripe recurring payments** with **asynchronous webhook processing using Celery + Redis**, including retries, idempotency, notifications, and transactional emails.
-- Designed a backend with **34 REST endpoints**, plus Redis caching, rate limiting, and Docker Compose orchestration across 5 services.
-- Structured the project with **72 automated tests, 84% coverage, and CI quality gates** for tests, linting, and API Docker build validation.
-
-### Short one-line version
-
-Built a full-stack SaaS for club management with Nuxt/Vue, FastAPI, PostgreSQL, Redis, Stripe, Celery, dashboard analytics, maps, subscriptions, and 72 automated tests.
+- Built a multi-tenant SaaS backend using FastAPI, JWT, and RBAC, resulting in organization-based data isolation and plan-limit enforcement.
+- Implemented recurring payments with Stripe Checkout and asynchronous webhook processing with Celery + Redis, resulting in resilient flows with retries and idempotency.
+- Designed and shipped 34 REST endpoints covering auth, CRUD, memberships, stats, notifications, and payments, resulting in full backend product coverage.
+- Improved operational robustness through Redis caching (TTL/prefix invalidation) and per-IP rate limiting, reducing pressure on critical endpoints and abuse risk.
+- Ensured engineering quality with 72 automated tests and 84% coverage, resulting in CI quality gates for tests, linting, and API Docker build validation.
 
 ---
 
-## Texto Final — Full-Stack PT
+## 5) Versao final - Full-Stack Developer (PT-PT)
 
-### Linha de role
+### Headline
 
-`[Full-Stack]`
+Full-Stack Developer | Frontend, Backend, APIs, Dados e Produto End-to-End
 
-### Manueli's Clubes — bullets para substituir
+### Resumo profissional
 
-- Desenvolvi uma **plataforma SaaS end-to-end** para gestão de clubes com **Nuxt/Vue no frontend** e **FastAPI no backend**.
-- Entreguei fluxos completos de produto com **autenticação JWT, RBAC, multi-tenancy, dashboard com métricas, mapas interativos, calendário de clubes e planos de subscrição**.
-- Integrei **pagamentos recorrentes com Stripe** e **processamento assíncrono de webhooks com Celery + Redis**, incluindo retries, idempotência, notificações e emails transacionais.
-- Estruturei o backend com **34 endpoints REST**, cache Redis, rate limiting e orquestração com Docker Compose em 5 serviços.
-- Garanti qualidade com **72 testes automatizados, 84% de cobertura e CI** com validação de testes, lint e build Docker da API.
+Engenheiro de software junior full-stack com capacidade de entrega end-to-end: interfaces, integracao com APIs, logica de backend, autenticacao, pagamentos e operacao tecnica. Foco em aplicacoes responsivas, manuteniveis e orientadas a impacto real de produto.
 
-### Versão curta de uma linha
+### Hard Skills (Full-Stack)
 
-Desenvolvi um SaaS full-stack para gestão de clubes com Nuxt/Vue, FastAPI, PostgreSQL, Redis, Stripe, Celery, dashboard, mapas, subscrições e 72 testes automatizados.
+- Frontend: Nuxt, Vue 3, JavaScript, HTML, CSS, Bootstrap, Chart.js, Leaflet, FullCalendar
+- Backend: Python, FastAPI, REST, JWT, RBAC, CRUD, Webhooks, SMTP
+- Dados: PostgreSQL, SQLAlchemy, Redis
+- Integracoes: Stripe Checkout, Webhooks, Email transacional
+- Arquitetura e operacao: Docker Compose, CI, rate limiting, cache, servicos distribuidos
+- Qualidade: pytest, cobertura, linting, validacao de build
 
----
+### Experiencia - Arrow4D (XYZ)
 
-## O Que Eu Mudaria No CV Além Do Projeto
+- Desenvolvi uma plataforma B2C end-to-end com FastAPI e Nuxt, resultando em 4 dashboards por perfil e utilizacao em contexto real.
+- Estruturei frontend e backend por dominios funcionais, resultando em maior previsibilidade de manutencao e evolucao do produto.
+- Implementei JWT e RBAC em fluxos completos UI + API, aumentando consistencia de seguranca entre camadas.
+- Automatizei processos de aluguer e faturacao com integracoes aplicacionais, reduzindo friccao operacional e trabalho manual.
 
-### Header
+### Projeto em destaque - Manueli's Clubes (XYZ)
 
-Se quiseres vender melhor, o teu headline pode ser um pouco mais orientado ao mercado.
-
-### Backend
-
-`Backend Developer | Python, FastAPI, APIs, Stripe, Celery, Redis`
-
-### Full-Stack
-
-`Full-Stack Developer | Nuxt, Vue, FastAPI, PostgreSQL, Redis`
-
----
-
-## Arrow4D — Ajuste Recomendado
-
-Esta experiência está boa, mas também a podes vender com mais força.
-
-### EN
-
-- Built a B2C full-stack platform from scratch with **FastAPI + Nuxt**, delivering **4 role-specific dashboards** and production usage with real clients.
-- Architected a **40+ endpoint REST API** with FastAPI, SQLAlchemy, and PostgreSQL, organised by domain for maintainability and scale.
-- Implemented **JWT + RBAC** with full permission isolation across 4 user profiles.
-- Automated the rental lifecycle with persistent cart and integrated billing, replacing a fully manual process.
-
-### PT
-
-- Desenvolvi de raiz uma plataforma B2C full-stack com **FastAPI + Nuxt**, com **4 dashboards por perfil** e utilização real em produção.
-- Estruturei uma **API REST com 40+ endpoints** em FastAPI, SQLAlchemy e PostgreSQL, organizada por domínio para facilitar manutenção e escala.
-- Implementei **JWT + RBAC** com separação total de permissões entre 4 perfis.
-- Automatizei o ciclo de aluguer com carrinho persistente e faturação integrada, substituindo um processo totalmente manual.
+- Desenvolvi um SaaS full-stack com Nuxt/Vue e FastAPI, resultando em fluxos completos de autenticacao, gestao de clubes, memberships e planos.
+- Entreguei dashboard analitico, mapas interativos e calendario de clubes atraves de integracao frontend + API, aumentando visibilidade operacional para o utilizador.
+- Implementei subscricoes recorrentes com Stripe Checkout e webhooks assincronos com Celery + Redis, resultando em automatizacao de pagamentos e notificacoes.
+- Estruturei arquitetura em 5 servicos Docker Compose com 34 endpoints REST, resultando em base tecnica modular e escalavel.
+- Garanti qualidade com 72 testes automatizados e 84% de cobertura, resultando em CI com quality gates para testes, lint e API Docker build.
 
 ---
 
-## Recomendação Final
+## 6) Versao final - Full-Stack Developer (EN)
 
-### Se fores enviar para vagas Backend
+### Headline
 
-- usa a versão backend
-- reduz ruído de frontend nas skills
-- mantém Manueli's Clubes como primeiro projeto
-- deixa Arrow4D logo a seguir para provar experiência real
+Full-Stack Developer | Product Engineering, APIs, Data, End-to-End Delivery
 
-### Se fores enviar para vagas Full-Stack
+### Professional summary
 
-- usa a versão full-stack
-- mantém mapas, dashboard, calendário e Stripe no texto
-- mostra ownership completo de produto
+Junior full-stack software engineer delivering end-to-end products across frontend, backend, APIs, data, and integrations. I focus on responsive user experience, reliable backend architecture, and measurable engineering quality.
+
+### Hard Skills (Full-Stack)
+
+- Frontend: Nuxt, Vue 3, JavaScript, HTML, CSS, Bootstrap, Chart.js, Leaflet, FullCalendar
+- Backend: Python, FastAPI, REST, JWT, RBAC, CRUD, Webhooks, SMTP
+- Data: PostgreSQL, SQLAlchemy, Redis
+- Integrations: Stripe Checkout, Webhooks, Transactional Email
+- Architecture and operations: Docker Compose, CI, rate limiting, caching, distributed services
+- Quality: pytest, coverage, linting, build validation
+
+### Experience - Arrow4D (XYZ)
+
+- Built an end-to-end B2C platform with FastAPI and Nuxt, resulting in 4 role-based dashboards and real client usage.
+- Structured frontend and backend by functional domains, resulting in clearer maintainability and long-term product evolution.
+- Implemented JWT and RBAC across complete UI + API flows, increasing cross-layer security consistency.
+- Automated rental and billing workflows through integrated product flows, reducing manual operations and process friction.
+
+### Featured project - Manueli's Clubes (XYZ)
+
+- Built a full-stack SaaS platform with Nuxt/Vue and FastAPI, resulting in complete flows for authentication, club management, memberships, and plans.
+- Delivered analytics dashboard, interactive maps, and club calendar through frontend/API integration, increasing operational visibility for users.
+- Implemented recurring subscriptions with Stripe Checkout and asynchronous webhooks via Celery + Redis, resulting in automated payment and notification workflows.
+- Structured the system into 5 Docker Compose services with 34 REST endpoints, resulting in a modular architecture ready for growth.
+- Ensured engineering quality with 72 automated tests and 84% coverage, resulting in CI quality gates for tests, linting, and API Docker build validation.
 
 ---
 
-## Resposta Direta À Tua Pergunta
+## 7) Keywords ATS adicionadas
 
-Sim, estás a vender-te **bem acima da média**, mas ainda **abaixo do que este projeto te permite vender**.
+### Backend keywords
 
-Hoje:
+API Development, REST APIs, OpenAPI, Backend Architecture, Authentication, Authorization, JWT, RBAC, Multi-tenancy, Stripe Integration, Webhooks, Asynchronous Processing, Celery, Redis Caching, Rate Limiting, PostgreSQL, SQLAlchemy, Docker, CI, Test Coverage, Quality Gates.
 
-- projeto: `8/10`
-- CV atual: `7/10`
-- potencial com os textos acima: `8.5/10`
+### Full-Stack keywords
 
-Se corrigires o texto do projeto, atualizares as métricas e afinares o foco entre backend e full-stack, o teu CV fica claramente mais forte.
+Full-Stack Development, End-to-End Delivery, Frontend-Backend Integration, Product Engineering, Responsive Interfaces, API Integration, Dashboard Analytics, Interactive Maps, Calendar Systems, Subscription Billing, Transactional Email, Docker Compose, Automated Testing, Software Architecture.
+
+---
+
+## 8) O que ainda falta para nivel muito competitivo
+
+- Medir impacto de produto com dados reais:
+  - tempo ate primeiro valor,
+  - conversao free -> pago,
+  - taxa de falha/recuperacao de pagamento.
+- Medir performance de sistema com KPIs tecnicos:
+  - latencia p95,
+  - tempo medio de processamento de webhook,
+  - cache hit ratio.
+- Publicar case study tecnico curto por projeto com:
+  - contexto,
+  - decisoes,
+  - trade-offs,
+  - resultados.
+- Reforcar evidencia de colaboracao e contexto real:
+  - feedback de utilizadores,
+  - evolucoes apos validacao,
+  - iteracoes com requisitos de negocio.
+
+---
+
+## 9) Sugestoes reais para aumentar empregabilidade
+
+1. Manter duas versoes de CV sempre prontas (Backend e Full-Stack) e ajustar 15-20% por vaga.
+2. Adaptar headline e resumo com palavras-chave exatas da descricao da vaga.
+3. Garantir que cada experiencia/projeto tenha pelo menos 2 bullets com resultado mensuravel.
+4. Criar portfolio online curto com links para repositorio, arquitetura e resultados.
+5. Preparar discurso de entrevista em formato XYZ para cada bullet importante.
+
+---
+
+## 10) Nota final (antes vs depois)
+
+### Estado anterior
+
+- CV Backend: 7.5/10
+- CV Full-Stack: 7.0/10
+- Venda geral: 7.0/10
+
+### Estado apos esta revisao
+
+- CV Backend: 8.7/10
+- CV Full-Stack: 8.3/10
+- Venda geral: 8.5/10
+
+Conclusao: o perfil passa de bom para fortemente competitivo a nivel junior, com posicionamento tecnico muito acima da media quando o texto e adaptado por tipo de vaga e orientado a impacto.
